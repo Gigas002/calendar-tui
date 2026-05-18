@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::style::Modifier;
@@ -25,7 +25,8 @@ fn example_settings_for_view(year: i32, month: u32, today: NaiveDate) -> Setting
     settings.view.view_year = year;
     settings.view.view_month = month;
     settings.view.today = today;
-    settings.view.selected_day = Some(today.day());
+    settings.view.selected_day = None;
+    settings.view.selection_mode = false;
     settings.grid = MonthGrid::build(year, month, settings.week_start);
     settings
 }
@@ -45,6 +46,7 @@ fn style_for_cell_highlights_today_in_adjacent_month() {
         view_year: 2026,
         view_month: 6,
         selected_day: None,
+        selection_mode: false,
         today,
     };
     let cell = DayCell {
@@ -66,6 +68,7 @@ fn style_for_cell_uses_other_month_when_not_today() {
         view_year: 2026,
         view_month: 5,
         selected_day: None,
+        selection_mode: false,
         today,
     };
     let cell = DayCell {
@@ -101,6 +104,7 @@ fn today_underline_only_on_day_digits() {
         view_year: 2026,
         view_month: 5,
         selected_day: Some(18),
+        selection_mode: true,
         today,
     };
     let cell = DayCell {
@@ -135,4 +139,28 @@ fn today_style_requires_matching_date_not_day_number() {
     };
     let style = style_for_cell(&may_18, &settings.view, &settings.colors);
     assert_eq!(style.fg, Some(settings.colors.today.to_rgb()));
+}
+
+#[test]
+fn selected_style_only_for_in_month_cells() {
+    let theme: Theme = Theme::default();
+    let colors = theme.resolve().unwrap();
+    let view = ViewState {
+        view_year: 2026,
+        view_month: 5,
+        selected_day: Some(30),
+        selection_mode: true,
+        today: naive_from_ymd(2026, 5, 18).unwrap(),
+    };
+    let trailing = DayCell {
+        date: naive_from_ymd(2026, 6, 1).unwrap(),
+        day: 1,
+        in_month: false,
+    };
+    let style = style_for_cell(&trailing, &view, &colors);
+    assert!(
+        !style
+            .add_modifier
+            .contains(ratatui::style::Modifier::REVERSED)
+    );
 }

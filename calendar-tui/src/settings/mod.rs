@@ -40,6 +40,15 @@ impl Settings {
         let _ = cli;
         Self::resolve(&config, &theme)
     }
+
+    pub fn refresh_grid(&mut self) {
+        self.grid = MonthGrid::build(self.view.view_year, self.view.view_month, self.week_start);
+    }
+
+    pub fn sync_view(&mut self) {
+        self.view.clamp_selected_day();
+        self.refresh_grid();
+    }
 }
 
 #[cfg(test)]

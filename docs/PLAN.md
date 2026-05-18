@@ -284,9 +284,9 @@ Use existing workflows (`build`, `fmt-clippy`, `test`, `doc`, `typos`, `deny`); 
 
 ### Phase 3 — Navigation
 
-- [ ] `view`: prev/next month, prev/next year, jump to today, optional day selection.
-- [ ] `app`: map keys (§4.2), redraw on change.
-- [ ] Clamp selection on shorter months (e.g. Jan 31 → Feb).
+- [x] `view`: prev/next month, prev/next year, jump to today, optional day selection.
+- [x] `app`: map keys (§4.2), redraw on change.
+- [x] Clamp selection on shorter months (e.g. Jan 31 → Feb).
 
 **Verify**: unit tests for state transitions; manual scroll across years.
 
@@ -294,7 +294,6 @@ Use existing workflows (`build`, `fmt-clippy`, `test`, `doc`, `typos`, `deny`); 
 
 - [ ] Apply `week_start` from config to grid and weekday headers.
 - [ ] Complete `theme.toml` coverage (weekend, other_month, border, status).
-- [ ] `settings`: optional CLI overrides (e.g. `--week-start`).
 
 **Verify**: `monday` vs `sunday` grid tests; theme parse tests.
 

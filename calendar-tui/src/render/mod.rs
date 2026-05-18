@@ -12,7 +12,8 @@ use crate::theme::ThemeColors;
 use crate::view::ViewState;
 
 const WEEKDAY_LABELS: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-const HELP: &str = "q quit";
+const HELP_NAVIGATE: &str = "h/l month  j/k year  t today  space select  q quit";
+const HELP_SELECT: &str = "h/l day  k/j week  space exit  t today  q quit";
 
 /// Draw the full calendar screen into `frame`.
 pub fn draw(frame: &mut Frame, settings: &Settings) {
@@ -29,7 +30,7 @@ pub fn draw(frame: &mut Frame, settings: &Settings) {
         Constraint::Length(3),
         Constraint::Length(3),
         Constraint::Length(1),
-        Constraint::Min(1),
+        Constraint::Fill(1),
         Constraint::Length(1),
     ])
     .margin(1);
@@ -53,7 +54,7 @@ pub fn draw(frame: &mut Frame, settings: &Settings) {
         },
         grid_area,
     );
-    draw_help(frame, help_area, &settings.colors);
+    draw_help(frame, help_area, settings);
 }
 
 pub fn weekday_labels(week_start: WeekStart) -> [String; 7] {
@@ -72,7 +73,10 @@ pub fn style_for_cell(cell: &DayCell, view: &ViewState, colors: &ThemeColors) ->
         return colors.other_month.patch_fg(base);
     }
 
-    if view.selected_day == Some(cell.day) {
+    if view.selection_mode
+        && cell.in_month
+        && view.selected_day == Some(cell.day)
+    {
         return colors
             .selected
             .patch_fg(base)
@@ -86,7 +90,8 @@ pub fn style_for_cell(cell: &DayCell, view: &ViewState, colors: &ThemeColors) ->
     base
 }
 
-/// Build a right-aligned day label; underline applies only to the day digits when today.
+/// Build a centered day label; underline applies only to the day digits when today.
+#[cfg(test)]
 pub fn day_line(
     cell: &DayCell,
     view: &ViewState,
@@ -182,12 +187,18 @@ fn draw_weekdays(frame: &mut Frame, area: Rect, settings: &Settings) {
     }
 }
 
-fn draw_help(frame: &mut Frame, area: Rect, colors: &ThemeColors) {
-    let widget = Paragraph::new(HELP)
+fn draw_help(frame: &mut Frame, area: Rect, settings: &Settings) {
+    let help = if settings.view.selection_mode {
+        HELP_SELECT
+    } else {
+        HELP_NAVIGATE
+    };
+    let widget = Paragraph::new(help)
         .style(
-            colors
+            settings
+                .colors
                 .foreground
-                .patch_fg(colors.background.patch_bg(Style::default()))
+                .patch_fg(settings.colors.background.patch_bg(Style::default()))
                 .add_modifier(Modifier::DIM),
         )
         .alignment(Alignment::Center);
@@ -234,31 +245,67 @@ impl Widget for CalendarGrid<'_> {
             return;
         }
 
+        let week_count = self.grid.weeks.len().max(1) as u16;
+        let row_height = (inner.height / week_count).max(1);
         let cols = column_rects(inner, 7);
+
         for (row, week) in self.grid.weeks.iter().enumerate() {
-            let y = inner.y + row as u16;
-            if y >= inner.y + inner.height {
+            let row_y = inner.y.saturating_add(row as u16 * row_height);
+            if row_y >= inner.y.saturating_add(inner.height) {
                 break;
             }
+            let row_area = Rect {
+                x: inner.x,
+                y: row_y,
+                width: inner.width,
+                height: row_height.min(inner.y.saturating_add(inner.height) - row_y),
+            };
+
             for (col, cell) in week.iter().enumerate() {
-                let cell_area = cols.get(col).copied().unwrap_or(inner);
+                let col_area = cols.get(col).copied().unwrap_or(row_area);
                 let cell_area = Rect {
-                    x: cell_area.x,
-                    y,
-                    width: cell_area.width,
-                    height: 1,
+                    x: col_area.x,
+                    y: row_area.y,
+                    width: col_area.width,
+                    height: row_area.height,
                 };
-                if cell_area.width == 0 {
+                if cell_area.width == 0 || cell_area.height == 0 {
                     continue;
                 }
-                let width = cell_area.width.min(3) as usize;
-                let line = day_line(cell, self.view, self.colors, width);
-                Paragraph::new(line)
-                    .alignment(Alignment::Right)
-                    .render(cell_area, buf);
+                render_day_cell(cell, self.view, self.colors, cell_area, buf);
             }
         }
     }
+}
+
+fn render_day_cell(
+    cell: &DayCell,
+    view: &ViewState,
+    colors: &ThemeColors,
+    area: Rect,
+    buf: &mut ratatui::buffer::Buffer,
+) {
+    let day_str = cell.day.to_string();
+    let line = if cell.date == view.today {
+        let day_style = colors
+            .today
+            .patch_fg(colors.background.patch_bg(Style::default()))
+            .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+        Line::from(Span::styled(day_str, day_style))
+    } else {
+        Line::from(Span::styled(day_str, style_for_cell(cell, view, colors)))
+    };
+
+    let text_y = area.y + area.height.saturating_sub(1) / 2;
+    let text_area = Rect {
+        x: area.x,
+        y: text_y,
+        width: area.width,
+        height: 1.min(area.height),
+    };
+    Paragraph::new(line)
+        .alignment(Alignment::Center)
+        .render(text_area, buf);
 }
 
 #[cfg(test)]
