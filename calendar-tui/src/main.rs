@@ -5,6 +5,7 @@ mod config;
 mod date;
 mod error;
 mod logger;
+mod render;
 mod settings;
 mod theme;
 mod view;

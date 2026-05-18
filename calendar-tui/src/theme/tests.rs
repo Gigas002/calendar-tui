@@ -1,6 +1,6 @@
-use ratatui::style::Color;
+use ratatui::style::Style;
 
-use super::{Theme, parse_color};
+use super::{Theme, ThemeColor, parse_color};
 
 const EXAMPLE_THEME: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -11,20 +11,61 @@ const EXAMPLE_THEME: &str = include_str!(concat!(
 fn example_theme_toml_deserializes() {
     let theme: Theme = toml::from_str(EXAMPLE_THEME).expect("example theme should parse");
     let colors = theme.resolve().expect("example colors should resolve");
-    assert_eq!(colors.background, parse_color("#1e1e2eFF").unwrap());
-    assert_eq!(colors.today, parse_color("#f9e2afFF").unwrap());
+    assert!(colors.background.is_transparent());
+    assert_eq!(
+        colors.today,
+        ThemeColor {
+            r: 0xf9,
+            g: 0xe2,
+            b: 0xaf,
+            a: 255
+        }
+    );
 }
 
 #[test]
 fn parse_color_rgb_and_rgba() {
     assert_eq!(
         parse_color("#ff00ff").unwrap(),
-        Color::from_u32(0x00ff_00ff)
+        ThemeColor {
+            r: 255,
+            g: 0,
+            b: 255,
+            a: 255
+        }
+    );
+    assert_eq!(
+        parse_color("#1e1e2e00").unwrap(),
+        ThemeColor {
+            r: 0x1e,
+            g: 0x1e,
+            b: 0x2e,
+            a: 0
+        }
     );
     assert_eq!(
         parse_color("#ff00ff80").unwrap(),
-        Color::from_u32(0x80ff_00ff)
+        ThemeColor {
+            r: 255,
+            g: 0,
+            b: 255,
+            a: 128
+        }
     );
+}
+
+#[test]
+fn transparent_color_omits_background() {
+    let c = parse_color("#1e1e2e00").unwrap();
+    let style = c.patch_bg(Style::default());
+    assert_eq!(style.bg, None);
+}
+
+#[test]
+fn opaque_color_sets_background() {
+    let c = parse_color("#1e1e2eFF").unwrap();
+    let style = c.patch_bg(Style::default());
+    assert_eq!(style.bg, Some(c.to_rgb()));
 }
 
 #[test]

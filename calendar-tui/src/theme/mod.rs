@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use ratatui::style::Color;
+use ratatui::style::{Color, Style};
 use serde::Deserialize;
 
 use crate::config::config_dir;
@@ -29,17 +29,66 @@ pub struct Calendar {
     pub other_month: Option<String>,
 }
 
+/// Parsed `#RRGGBB` or `#RRGGBBAA` theme color.
+///
+/// Terminals do not blend alpha; `a == 0` leaves that layer unset (terminal shows through),
+/// `a > 0` uses opaque RGB (alpha channel is not blended).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ThemeColor {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+impl ThemeColor {
+    pub const OPAQUE: u8 = 255;
+
+    pub fn is_transparent(self) -> bool {
+        self.a == 0
+    }
+
+    pub fn to_rgb(self) -> Color {
+        Color::Rgb(self.r, self.g, self.b)
+    }
+
+    pub fn patch_fg(self, style: Style) -> Style {
+        if self.is_transparent() {
+            style
+        } else {
+            style.fg(self.to_rgb())
+        }
+    }
+
+    pub fn patch_bg(self, style: Style) -> Style {
+        if self.is_transparent() {
+            style
+        } else {
+            style.bg(self.to_rgb())
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThemeColors {
-    pub background: Color,
-    pub foreground: Color,
-    pub border: Color,
-    pub header: Color,
-    pub status: Color,
-    pub today: Color,
-    pub selected: Color,
-    pub weekend: Color,
-    pub other_month: Color,
+    pub background: ThemeColor,
+    pub foreground: ThemeColor,
+    pub border: ThemeColor,
+    pub header: ThemeColor,
+    pub status: ThemeColor,
+    pub today: ThemeColor,
+    pub selected: ThemeColor,
+    pub weekend: ThemeColor,
+    pub other_month: ThemeColor,
+}
+
+impl ThemeColors {
+    pub fn cell_base(&self) -> Style {
+        let mut style = Style::default();
+        style = self.foreground.patch_fg(style);
+        style = self.background.patch_bg(style);
+        style
+    }
 }
 
 impl Default for Base {
@@ -143,31 +192,32 @@ pub fn resolve_path(config_path: &Path, theme: &str) -> PathBuf {
     themes_dir().join(theme)
 }
 
-pub fn parse_color(value: &str) -> Result<Color, Error> {
+pub fn parse_color(value: &str) -> Result<ThemeColor, Error> {
     let hex = value.trim().trim_start_matches('#');
-    let (r, g, b, a) = match hex.len() {
+    match hex.len() {
         6 => {
             let r = parse_hex_byte(&hex[0..2])?;
             let g = parse_hex_byte(&hex[2..4])?;
             let b = parse_hex_byte(&hex[4..6])?;
-            (r, g, b, 255)
+            Ok(ThemeColor {
+                r,
+                g,
+                b,
+                a: ThemeColor::OPAQUE,
+            })
         }
         8 => {
             let r = parse_hex_byte(&hex[0..2])?;
             let g = parse_hex_byte(&hex[2..4])?;
             let b = parse_hex_byte(&hex[4..6])?;
             let a = parse_hex_byte(&hex[6..8])?;
-            (r, g, b, a)
+            Ok(ThemeColor { r, g, b, a })
         }
-        _ => {
-            return Err(Error::InvalidColor {
-                value: value.to_string(),
-                reason: "expected #RRGGBB or #RRGGBBAA".to_string(),
-            });
-        }
-    };
-    let argb = (u32::from(a) << 24) | (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b);
-    Ok(Color::from_u32(argb))
+        _ => Err(Error::InvalidColor {
+            value: value.to_string(),
+            reason: "expected #RRGGBB or #RRGGBBAA".to_string(),
+        }),
+    }
 }
 
 fn parse_hex_byte(pair: &str) -> Result<u8, Error> {

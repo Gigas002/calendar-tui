@@ -276,9 +276,9 @@ Use existing workflows (`build`, `fmt-clippy`, `test`, `doc`, `typos`, `deny`); 
 
 ### Phase 2 — Render month view
 
-- [ ] `render`: status (today), header (view month/year), weekday row, grid with today highlighted.
-- [ ] Wire theme colors into `Style`; defaults when keys missing.
-- [ ] Display **week count** on status line.
+- [x] `render`: status (today), header (view month/year), weekday row, grid with today highlighted.
+- [x] Wire theme colors into `Style`; defaults when keys missing.
+- [x] Display **week count** on status line.
 
 **Verify**: `TestBackend` or manual check; today highlight when view month ≠ today’s month.
 
