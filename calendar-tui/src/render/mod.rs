@@ -5,18 +5,30 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
+mod year;
+
 use crate::calendar::{DayCell, MonthGrid};
 use crate::date::{WeekStart, naive_from_ymd};
 use crate::settings::Settings;
 use crate::theme::ThemeColors;
-use crate::view::ViewState;
+use crate::view::{ViewMode, ViewState};
 
 const WEEKDAY_LABELS: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-const HELP_NAVIGATE: &str = "h/l month  j/k year  t today  space select  q quit";
-const HELP_SELECT: &str = "h/l day  k/j week  space exit  t today  q quit";
+const HELP_MONTH_NAV: &str =
+    "h/l month  j/k year  esc year-view  t today  space select  q quit";
+const HELP_MONTH_SELECT: &str = "h/l day  k/j week  esc year-view  space exit  t today  q quit";
+const HELP_YEAR: &str =
+    "h/l month  j/k year  enter month-view  t today  q quit";
 
 /// Draw the full calendar screen into `frame`.
 pub fn draw(frame: &mut Frame, settings: &Settings) {
+    match settings.view.mode {
+        ViewMode::Month => draw_month(frame, settings),
+        ViewMode::Year => year::draw_year(frame, settings),
+    }
+}
+
+fn draw_month(frame: &mut Frame, settings: &Settings) {
     let area = frame.area();
     frame.render_widget(ratatui::widgets::Clear, area);
     if !settings.colors.background.is_transparent() {
@@ -120,7 +132,7 @@ pub fn day_line(
     ))
 }
 
-fn block_style(colors: &ThemeColors) -> Style {
+pub(crate) fn block_style(colors: &ThemeColors) -> Style {
     colors.background.patch_bg(Style::default())
 }
 
@@ -187,11 +199,11 @@ fn draw_weekdays(frame: &mut Frame, area: Rect, settings: &Settings) {
     }
 }
 
-fn draw_help(frame: &mut Frame, area: Rect, settings: &Settings) {
-    let help = if settings.view.selection_mode {
-        HELP_SELECT
-    } else {
-        HELP_NAVIGATE
+pub(crate) fn draw_help(frame: &mut Frame, area: Rect, settings: &Settings) {
+    let help = match settings.view.mode {
+        ViewMode::Year => HELP_YEAR,
+        ViewMode::Month if settings.view.selection_mode => HELP_MONTH_SELECT,
+        ViewMode::Month => HELP_MONTH_NAV,
     };
     let widget = Paragraph::new(help)
         .style(
@@ -205,21 +217,46 @@ fn draw_help(frame: &mut Frame, area: Rect, settings: &Settings) {
     frame.render_widget(widget, area);
 }
 
-fn column_rects(area: Rect, count: u16) -> Vec<Rect> {
+fn split_axis(area: Rect, count: u16, horizontal: bool) -> Vec<Rect> {
     let count = count.max(1);
-    let col_width = area.width / count;
+    let (total, pos) = if horizontal {
+        (area.width, area.x)
+    } else {
+        (area.height, area.y)
+    };
+    let base = total / count;
+    let extra = total % count;
+    let mut offset = pos;
     (0..count)
-        .map(|i| Rect {
-            x: area.x + i * col_width,
-            y: area.y,
-            width: if i + 1 == count {
-                area.width.saturating_sub(col_width * (count - 1))
+        .map(|i| {
+            let size = base + u16::from(i < extra);
+            let rect = if horizontal {
+                Rect {
+                    x: offset,
+                    y: area.y,
+                    width: size,
+                    height: area.height,
+                }
             } else {
-                col_width
-            },
-            height: area.height,
+                Rect {
+                    x: area.x,
+                    y: offset,
+                    width: area.width,
+                    height: size,
+                }
+            };
+            offset += size;
+            rect
         })
         .collect()
+}
+
+pub(crate) fn column_rects(area: Rect, count: u16) -> Vec<Rect> {
+    split_axis(area, count, true)
+}
+
+pub(crate) fn row_rects(area: Rect, count: u16) -> Vec<Rect> {
+    split_axis(area, count, false)
 }
 
 struct CalendarGrid<'a> {

@@ -8,6 +8,8 @@ show_week_numbers = false
 theme = "theme.toml"
 
 [display]
+# Starting view: month | year (switch anytime with m / y)
+default_mode = "year"
 # strftime-style formats (chrono)
 date_format = "%a, %d %b %Y"
 month_year_format = "%B %Y"

@@ -44,6 +44,7 @@ fn main() -> ExitCode {
 
     tracing::info!(
         week_start = ?settings.week_start,
+        view_mode = ?settings.view.mode,
         weeks = settings.grid.week_count(),
         view_month = settings.view.view_month,
         view_year = settings.view.view_year,

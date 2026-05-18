@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 use crate::date::WeekStart;
 use crate::error::Error;
+use crate::view::ViewMode;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
@@ -22,6 +23,8 @@ pub struct Calendar {
 pub struct Display {
     pub date_format: Option<String>,
     pub month_year_format: Option<String>,
+    /// Starting view: `month` or `year` (also toggled with `m` / `y` at runtime).
+    pub default_mode: Option<ViewMode>,
 }
 
 impl Default for Calendar {
@@ -39,6 +42,7 @@ impl Default for Display {
         Self {
             date_format: Some("%a, %d %b %Y".to_string()),
             month_year_format: Some("%B %Y".to_string()),
+            default_mode: Some(ViewMode::Year),
         }
     }
 }
@@ -107,6 +111,13 @@ impl Config {
             .as_ref()
             .and_then(|d| d.month_year_format.as_deref())
             .unwrap_or("%B %Y")
+    }
+
+    pub fn default_mode(&self) -> ViewMode {
+        self.display
+            .as_ref()
+            .and_then(|d| d.default_mode)
+            .unwrap_or(ViewMode::Year)
     }
 }
 

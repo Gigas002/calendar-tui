@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::settings::Settings;
 use crate::theme::Theme;
+use crate::view::ViewMode;
 
 const EXAMPLE_CONFIG: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -18,4 +19,5 @@ fn settings_from_examples() {
     let settings = Settings::resolve(&config, &theme).unwrap();
     assert_eq!(settings.grid.week_count(), 5);
     assert_eq!(settings.date_format, "%a, %d %b %Y");
+    assert_eq!(settings.view.mode, ViewMode::Year);
 }

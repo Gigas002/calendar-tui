@@ -1,26 +1,68 @@
+mod mode;
+
+pub use mode::ViewMode;
+
 use chrono::{Datelike, Months, NaiveDate};
 
 use crate::date::{days_in_month, naive_from_ymd, today_local};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ViewState {
+    pub mode: ViewMode,
     pub view_year: i32,
     pub view_month: u32,
+    /// Month highlighted in year view (1–12); kept in sync with `view_month` when navigating.
+    pub focused_month: u32,
     pub selected_day: Option<u32>,
     pub selection_mode: bool,
     pub today: NaiveDate,
 }
 
 impl ViewState {
-    pub fn new_at_today() -> Self {
+    pub fn new_at_today(mode: ViewMode) -> Self {
         let today = today_local();
+        let month = today.month();
         Self {
+            mode,
             view_year: today.year(),
-            view_month: today.month(),
+            view_month: month,
+            focused_month: month,
             selected_day: None,
             selection_mode: false,
             today,
         }
+    }
+
+    pub fn set_mode(&mut self, mode: ViewMode) {
+        if self.mode == mode {
+            return;
+        }
+        self.selection_mode = false;
+        self.selected_day = None;
+        self.mode = mode;
+        match mode {
+            ViewMode::Month => {
+                self.view_month = self.focused_month;
+            }
+            ViewMode::Year => {
+                self.focused_month = self.view_month;
+            }
+        }
+    }
+
+    pub fn enter_month_mode(&mut self) {
+        self.view_month = self.focused_month;
+        self.set_mode(ViewMode::Month);
+    }
+
+    pub fn focus_prev_month(&mut self) {
+        self.focused_month = self.focused_month.saturating_sub(1).max(1);
+        self.view_month = self.focused_month;
+    }
+
+    pub fn focus_next_month(&mut self) {
+        self.focused_month = (self.focused_month + 1).min(12);
+        self.view_month = self.focused_month;
     }
 
     pub fn clamp_selected_day(&mut self) {
@@ -35,6 +77,9 @@ impl ViewState {
     }
 
     pub fn toggle_selection_mode(&mut self) {
+        if self.mode != ViewMode::Month {
+            return;
+        }
         if self.selection_mode {
             self.selection_mode = false;
             self.selected_day = None;
@@ -69,10 +114,12 @@ impl ViewState {
 
     pub fn prev_month(&mut self) {
         self.shift_month(-1);
+        self.focused_month = self.view_month;
     }
 
     pub fn next_month(&mut self) {
         self.shift_month(1);
+        self.focused_month = self.view_month;
     }
 
     pub fn prev_year(&mut self) {
@@ -89,7 +136,8 @@ impl ViewState {
         self.today = today_local();
         self.view_year = self.today.year();
         self.view_month = self.today.month();
-        if self.selection_mode {
+        self.focused_month = self.today.month();
+        if self.selection_mode && self.mode == ViewMode::Month {
             self.selected_day = Some(self.today.day());
         } else {
             self.selected_day = None;

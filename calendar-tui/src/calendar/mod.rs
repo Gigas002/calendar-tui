@@ -9,6 +9,9 @@ pub struct DayCell {
     pub in_month: bool,
 }
 
+/// Maximum week rows a month grid can occupy (used for uniform year-view layout).
+pub const MAX_WEEK_ROWS: usize = 6;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MonthGrid {
     pub year: i32,
@@ -64,6 +67,12 @@ impl MonthGrid {
     pub fn week_count(&self) -> usize {
         self.weeks.len()
     }
+}
+
+pub fn build_year_grids(year: i32, week_start: WeekStart) -> Vec<MonthGrid> {
+    (1..=12)
+        .map(|month| MonthGrid::build(year, month, week_start))
+        .collect()
 }
 
 #[cfg(test)]

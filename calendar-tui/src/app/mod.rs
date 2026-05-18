@@ -12,6 +12,7 @@ use ratatui::backend::CrosstermBackend;
 use crate::error::Error;
 use crate::render;
 use crate::settings::Settings;
+use crate::view::ViewMode;
 
 struct App {
     running: bool,
@@ -32,14 +33,44 @@ impl App {
 
     fn handle_key(&mut self, key: KeyEvent) {
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => self.quit(),
+            KeyCode::Char('q') => self.quit(),
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => self.quit(),
-            _ if self.settings.view.selection_mode => self.handle_selection_key(key),
-            _ => self.handle_navigate_key(key),
+            KeyCode::Esc => self.back_to_year_view(),
+            KeyCode::Char('m') => self.set_month_mode(),
+            KeyCode::Char('y') => self.set_year_mode(),
+            _ => match self.settings.view.mode {
+                ViewMode::Month if self.settings.view.selection_mode => {
+                    self.handle_month_selection_key(key);
+                }
+                ViewMode::Month => self.handle_month_navigate_key(key),
+                ViewMode::Year => self.handle_year_navigate_key(key),
+            },
         }
     }
 
-    fn handle_navigate_key(&mut self, key: KeyEvent) {
+    fn set_month_mode(&mut self) {
+        if self.settings.view.mode == ViewMode::Month {
+            return;
+        }
+        self.settings.view.enter_month_mode();
+        self.settings.sync_view();
+    }
+
+    fn set_year_mode(&mut self) {
+        if self.settings.view.mode == ViewMode::Year {
+            return;
+        }
+        self.settings.view.set_mode(ViewMode::Year);
+        self.settings.sync_view();
+    }
+
+    fn back_to_year_view(&mut self) {
+        if self.settings.view.mode == ViewMode::Month {
+            self.set_year_mode();
+        }
+    }
+
+    fn handle_month_navigate_key(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Left | KeyCode::Char('h') => {
                 self.settings.view.prev_month();
@@ -76,7 +107,7 @@ impl App {
         }
     }
 
-    fn handle_selection_key(&mut self, key: KeyEvent) {
+    fn handle_month_selection_key(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 self.settings.view.toggle_selection_mode();
@@ -101,6 +132,42 @@ impl App {
             }
             KeyCode::Home | KeyCode::Char('t') => {
                 self.settings.view.jump_to_today();
+                self.settings.sync_view();
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_year_navigate_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Left | KeyCode::Char('h') => {
+                self.settings.view.focus_prev_month();
+            }
+            KeyCode::Right | KeyCode::Char('l') => {
+                self.settings.view.focus_next_month();
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                self.settings.view.prev_year();
+                self.settings.sync_view();
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                self.settings.view.next_year();
+                self.settings.sync_view();
+            }
+            KeyCode::Home | KeyCode::Char('t') => {
+                self.settings.view.jump_to_today();
+                self.settings.sync_view();
+            }
+            KeyCode::Enter => {
+                self.settings.view.enter_month_mode();
+                self.settings.sync_view();
+            }
+            KeyCode::PageUp => {
+                self.settings.view.prev_year();
+                self.settings.sync_view();
+            }
+            KeyCode::PageDown => {
+                self.settings.view.next_year();
                 self.settings.sync_view();
             }
             _ => {}

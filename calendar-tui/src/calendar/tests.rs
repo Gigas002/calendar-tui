@@ -1,4 +1,4 @@
-use super::MonthGrid;
+use super::{MonthGrid, MAX_WEEK_ROWS, build_year_grids};
 use crate::date::WeekStart;
 
 #[test]
@@ -26,7 +26,7 @@ fn may_2026_has_five_weeks_monday_start() {
 fn each_week_start_produces_valid_grid_for_may_2026() {
     for start in WeekStart::ALL {
         let grid = MonthGrid::build(2026, 5, start);
-        assert!(grid.week_count() >= 5 && grid.week_count() <= 6);
+        assert!(grid.week_count() >= 5 && grid.week_count() <= MAX_WEEK_ROWS);
         assert_eq!(grid.weeks.len(), grid.week_count());
         assert_eq!(in_month_days(&grid), 31);
         for week in &grid.weeks {
@@ -63,6 +63,30 @@ fn grid_cells_are_contiguous_dates() {
             1
         );
     }
+}
+
+#[test]
+fn year_grids_never_exceed_max_week_rows() {
+    for start in WeekStart::ALL {
+        let grids = build_year_grids(2026, start);
+        for grid in &grids {
+            assert!(
+                grid.week_count() <= MAX_WEEK_ROWS,
+                "month {} has {} weeks",
+                grid.month,
+                grid.week_count()
+            );
+        }
+    }
+}
+
+#[test]
+fn build_year_grids_has_twelve_months() {
+    let grids = build_year_grids(2026, WeekStart::Monday);
+    assert_eq!(grids.len(), 12);
+    assert_eq!(grids[0].month, 1);
+    assert_eq!(grids[11].month, 12);
+    assert_eq!(grids[4].month, 5);
 }
 
 fn in_month_days(grid: &MonthGrid) -> u32 {
