@@ -1,0 +1,18 @@
+# Example config for calendar-tui.
+# Copy to $XDG_CONFIG_HOME/calendar-tui/config.toml
+
+[calendar]
+# First column of the month grid: monday | tuesday | wednesday | thursday | friday | saturday | sunday
+week_start = "monday"
+show_week_numbers = false
+theme = "theme.toml"
+
+[display]
+# strftime-style formats (chrono)
+date_format = "%a, %d %b %Y"
+month_year_format = "%B %Y"
+
+# Optional key overrides (Phase 3+). Omit to use built-in defaults.
+# [keys]
+# prev_month = ["Left", "h"]
+# next_month = ["Right", "l"]

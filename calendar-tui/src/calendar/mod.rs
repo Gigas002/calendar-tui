@@ -1,0 +1,70 @@
+use chrono::{Datelike, Duration, NaiveDate};
+
+use crate::date::{WeekStart, days_in_month, naive_from_ymd};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DayCell {
+    pub date: NaiveDate,
+    pub day: u32,
+    pub in_month: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MonthGrid {
+    pub year: i32,
+    pub month: u32,
+    pub weeks: Vec<[DayCell; 7]>,
+}
+
+impl MonthGrid {
+    pub fn build(year: i32, month: u32, week_start: WeekStart) -> Self {
+        let first = naive_from_ymd(year, month, 1).expect("valid month start");
+        let len = days_in_month(year, month);
+        let last = naive_from_ymd(year, month, len).expect("valid month end");
+        let start_col = week_start.column_for(first.weekday()) as usize;
+
+        let mut cells: Vec<DayCell> = Vec::new();
+
+        for offset in (0..start_col).rev() {
+            let date = first - Duration::days((offset + 1) as i64);
+            cells.push(DayCell {
+                date,
+                day: date.day(),
+                in_month: false,
+            });
+        }
+
+        for day in 1..=len {
+            let date = naive_from_ymd(year, month, day).expect("valid in-month day");
+            cells.push(DayCell {
+                date,
+                day,
+                in_month: true,
+            });
+        }
+
+        let mut tail = last + Duration::days(1);
+        while !cells.is_empty() && !cells.len().is_multiple_of(7) {
+            cells.push(DayCell {
+                date: tail,
+                day: tail.day(),
+                in_month: false,
+            });
+            tail += Duration::days(1);
+        }
+
+        let weeks = cells
+            .chunks_exact(7)
+            .map(|chunk| chunk.try_into().expect("chunk length 7"))
+            .collect();
+
+        Self { year, month, weeks }
+    }
+
+    pub fn week_count(&self) -> usize {
+        self.weeks.len()
+    }
+}
+
+#[cfg(test)]
+mod tests;

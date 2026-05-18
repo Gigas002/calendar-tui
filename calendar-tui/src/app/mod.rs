@@ -9,22 +9,26 @@ use crossterm::terminal::{
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::{Frame, Terminal};
 
+use crate::date::naive_from_ymd;
 use crate::error::Error;
+use crate::settings::Settings;
 
-const TITLE: &str = "calendar-tui";
 const HELP: &str = "Press q to quit";
 
 struct App {
     running: bool,
+    settings: Settings,
 }
 
 impl App {
-    fn new() -> Self {
-        Self { running: true }
+    fn new(settings: Settings) -> Self {
+        Self {
+            running: true,
+            settings,
+        }
     }
 
     fn quit(&mut self) {
@@ -63,16 +67,18 @@ impl Drop for Tty {
     }
 }
 
-pub fn run() -> Result<(), Error> {
+pub fn run(settings: Settings) -> Result<(), Error> {
     if !io::stdout().is_terminal() {
         return Err(Error::NotATty);
     }
 
-    let mut app = App::new();
+    let mut app = App::new(settings);
     let mut tty = Tty::enter()?;
 
     while app.running {
-        tty.terminal.draw(draw).map_err(Error::Terminal)?;
+        tty.terminal
+            .draw(|frame| draw(frame, &app.settings))
+            .map_err(Error::Terminal)?;
 
         if event::poll(Duration::from_millis(100)).map_err(Error::Terminal)? {
             let Event::Key(key) = event::read().map_err(Error::Terminal)? else {
@@ -91,33 +97,71 @@ pub fn run() -> Result<(), Error> {
     Ok(())
 }
 
-fn draw(frame: &mut Frame<'_>) {
+fn draw(frame: &mut Frame<'_>, settings: &Settings) {
+    let colors = &settings.colors;
     let area = frame.area();
     let vertical = Layout::vertical([
+        Constraint::Length(3),
         Constraint::Length(3),
         Constraint::Min(1),
         Constraint::Length(1),
     ])
     .margin(1);
 
-    let [title_area, body_area, help_area] = vertical.areas(area);
+    let [status_area, header_area, body_area, help_area] = vertical.areas(area);
 
-    let title = Paragraph::new(Line::from(Span::styled(
-        TITLE,
-        Style::default().add_modifier(Modifier::BOLD),
-    )))
-    .block(Block::default().borders(Borders::ALL).title(" Welcome "))
-    .alignment(Alignment::Center);
+    let today_line = settings
+        .view
+        .today
+        .format(&settings.date_format)
+        .to_string();
+    let status_text = format!("{}    Weeks: {}", today_line, settings.grid.week_count());
 
-    let body = Paragraph::new("Phase 0 — month view coming soon.")
-        .block(Block::default().borders(Borders::ALL))
+    let header_text = naive_from_ymd(settings.view.view_year, settings.view.view_month, 1)
+        .map(|d| d.format(&settings.month_year_format).to_string())
+        .unwrap_or_else(|| format!("{} / {}", settings.view.view_month, settings.view.view_year));
+
+    let body = format!(
+        "Phase 1 — grid {}×{} (week_start: {:?})",
+        settings.grid.week_count(),
+        7,
+        settings.week_start
+    );
+
+    let status = Paragraph::new(status_text)
+        .style(Style::default().fg(colors.status))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(colors.border))
+                .title(" Today "),
+        );
+
+    let header = Paragraph::new(header_text)
+        .style(Style::default().fg(colors.header))
+        .alignment(Alignment::Center)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(colors.border)),
+        );
+
+    let body_widget = Paragraph::new(body)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(colors.border)),
+        )
         .alignment(Alignment::Center);
 
-    let help = Paragraph::new(HELP)
-        .alignment(Alignment::Center)
-        .style(Style::default().add_modifier(Modifier::DIM));
+    let help = Paragraph::new(HELP).alignment(Alignment::Center).style(
+        Style::default()
+            .fg(colors.foreground)
+            .add_modifier(Modifier::DIM),
+    );
 
-    frame.render_widget(title, title_area);
-    frame.render_widget(body, body_area);
+    frame.render_widget(status, status_area);
+    frame.render_widget(header, header_area);
+    frame.render_widget(body_widget, body_area);
     frame.render_widget(help, help_area);
 }

@@ -267,10 +267,10 @@ Use existing workflows (`build`, `fmt-clippy`, `test`, `doc`, `typos`, `deny`); 
 
 ### Phase 1 — Config + theme + date model
 
-- [ ] Serde models for `examples/config.toml` / `theme.toml` (`week_start`, colors).
-- [ ] XDG path resolution + `--config` / `--theme` (`cli` + `config` + `theme`).
-- [ ] `date`: today, days-in-month, weekday index with `week_start`.
-- [ ] `calendar`: build month grid (`Vec` of weeks, 7 cells each with day + in-month flag).
+- [x] Serde models for `examples/config.toml` / `theme.toml` (`week_start`, colors).
+- [x] XDG path resolution + `--config` / `--theme` (`cli` + `config` + `theme`).
+- [x] `date`: today, days-in-month, weekday index with `week_start`.
+- [x] `calendar`: build month grid (`Vec` of weeks, 7 cells each with day + in-month flag).
 
 **Verify**: unit tests for grid shape and week count (Feb leap/non-leap, each weekday as month start).
 
