@@ -259,9 +259,9 @@ Use existing workflows (`build`, `fmt-clippy`, `test`, `doc`, `typos`, `deny`); 
 
 ### Phase 0 — Workspace + hygiene + empty vertical slice
 
-- [ ] Ensure root `Cargo.toml` workspace member is **`calendar-tui`** only; flesh out `calendar-tui/Cargo.toml` deps.
-- [ ] `main` + `app`: tracing subscriber, minimal TUI (alternate screen, static title, quit on `q`); structured error on missing terminal.
-- [ ] Populate **`deny.toml` licenses allow list** for initial deps.
+- [x] Ensure root `Cargo.toml` workspace member is **`calendar-tui`** only; flesh out `calendar-tui/Cargo.toml` deps.
+- [x] `main` + `app`: tracing subscriber, minimal TUI (alternate screen, static title, quit on `q`); structured error on missing terminal.
+- [x] Populate **`deny.toml` licenses allow list** for initial deps.
 
 **Verify**: all gates in §6; manual run in a real terminal.
 
