@@ -299,20 +299,12 @@ Use existing workflows (`build`, `fmt-clippy`, `test`, `doc`, `typos`, `deny`); 
 
 ### Phase 5 — Polish + v0.1.0 release
 
-- [ ] README: install, keybindings, config/theme paths, screenshots/gif.
-- [ ] `examples/*.toml` documented and validated in tests.
-- [ ] CHANGELOG; tag **v0.1.0**.
+- [x] README: install, keybindings, config/theme paths, screenshots/gif.
+- [x] `examples/*.toml` documented and validated in tests.
+- [x] CHANGELOG
+- [ ] Tag **v0.1.0** (release)
 
 **Verify**: full §6 gates + manual dogfood for a full year of navigation.
-
-### Post-0.1.0 — Pluggable calendar notes
-
-- [ ] Optional feature **`provider`**: trait `CalendarProvider` → per-date annotations (color, short label).
-- [ ] File backend: TOML/JSON (e.g. `~/.config/calendar-tui/notes.toml`); optional `r` reload key.
-- [ ] `render`: note indicator on cells using theme `note_*` colors.
-- [ ] Document extension point for future backends without implementing them.
-
-**Verify**: fixture file tests; manual run with sample notes.
 
 ---
 

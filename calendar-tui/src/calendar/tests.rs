@@ -1,6 +1,6 @@
 use chrono::{Datelike, Weekday};
 
-use super::{MonthGrid, MAX_WEEK_ROWS, build_year_grids};
+use super::{MAX_WEEK_ROWS, MonthGrid, build_year_grids};
 use crate::date::WeekStart;
 
 #[test]
@@ -128,4 +128,18 @@ fn in_month_days(grid: &MonthGrid) -> u32 {
         .flat_map(|w| w.iter())
         .filter(|c| c.in_month)
         .count() as u32
+}
+
+#[test]
+fn iso_week_numbers_match_thursday_in_each_row() {
+    let grid = MonthGrid::build(2026, 5, WeekStart::Monday);
+    let numbers = grid.iso_week_numbers();
+    assert_eq!(numbers.len(), grid.week_count());
+    for (week, iso_week) in grid.weeks.iter().zip(numbers) {
+        let thursday = week
+            .iter()
+            .find(|c| c.date.weekday() == Weekday::Thu)
+            .expect("each week row contains a Thursday");
+        assert_eq!(iso_week, thursday.date.iso_week().week());
+    }
 }

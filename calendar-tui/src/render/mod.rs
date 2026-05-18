@@ -14,11 +14,12 @@ use crate::theme::ThemeColors;
 use crate::view::{ViewMode, ViewState};
 
 const WEEKDAY_LABELS: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-const HELP_MONTH_NAV: &str =
-    "h/l month  j/k year  esc year-view  t today  space select  q quit";
+const WEEK_NUMBER_HEADER: &str = "Wk";
+const MONTH_WEEK_COL_WIDTH: u16 = 4;
+pub(crate) const MINI_WEEK_COL_WIDTH: u16 = 2;
+const HELP_MONTH_NAV: &str = "h/l month  j/k year  esc year-view  t today  space select  q quit";
 const HELP_MONTH_SELECT: &str = "h/l day  k/j week  esc year-view  space exit  t today  q quit";
-const HELP_YEAR: &str =
-    "h/l month  j/k year  enter month-view  t today  q quit";
+const HELP_YEAR: &str = "h/l month  j/k year  enter month-view  t today  q quit";
 
 /// Draw the full calendar screen into `frame`.
 pub fn draw(frame: &mut Frame, settings: &Settings) {
@@ -63,6 +64,7 @@ fn draw_month(frame: &mut Frame, settings: &Settings) {
             grid: &settings.grid,
             view: &settings.view,
             colors: &settings.colors,
+            show_week_numbers: settings.show_week_numbers,
         },
         grid_area,
     );
@@ -85,10 +87,7 @@ pub fn style_for_cell(cell: &DayCell, view: &ViewState, colors: &ThemeColors) ->
         return colors.other_month.patch_fg(base);
     }
 
-    if view.selection_mode
-        && cell.in_month
-        && view.selected_day == Some(cell.day)
-    {
+    if view.selection_mode && cell.in_month && view.selected_day == Some(cell.day) {
         return colors
             .selected
             .patch_fg(base)
@@ -115,7 +114,9 @@ pub fn day_line(
     let pad = " ".repeat(pad_len);
 
     if cell.date == view.today {
-        let pad_style = colors.foreground.patch_fg(colors.background.patch_bg(Style::default()));
+        let pad_style = colors
+            .foreground
+            .patch_fg(colors.background.patch_bg(Style::default()));
         let day_style = colors
             .today
             .patch_fg(colors.background.patch_bg(Style::default()))
@@ -183,20 +184,88 @@ fn draw_header(frame: &mut Frame, area: Rect, settings: &Settings) {
     frame.render_widget(widget, area);
 }
 
+pub(crate) struct GridColumns {
+    pub week_col: Option<Rect>,
+    pub days: Rect,
+}
+
+pub(crate) fn split_week_column(area: Rect, show: bool, week_width: u16) -> GridColumns {
+    if !show || area.width <= week_width {
+        return GridColumns {
+            week_col: None,
+            days: area,
+        };
+    }
+    let week_col = Rect {
+        x: area.x,
+        y: area.y,
+        width: week_width,
+        height: area.height,
+    };
+    let days = Rect {
+        x: area.x + week_width,
+        y: area.y,
+        width: area.width.saturating_sub(week_width),
+        height: area.height,
+    };
+    GridColumns {
+        week_col: Some(week_col),
+        days,
+    }
+}
+
 fn draw_weekdays(frame: &mut Frame, area: Rect, settings: &Settings) {
-    let labels = weekday_labels(settings.week_start);
-    let cols = column_rects(area, 7);
+    let columns = split_week_column(area, settings.show_week_numbers, MONTH_WEEK_COL_WIDTH);
     let style = settings
         .colors
         .foreground
         .patch_fg(settings.colors.background.patch_bg(Style::default()))
         .add_modifier(Modifier::BOLD);
+
+    if let Some(week_area) = columns.week_col {
+        let widget = Paragraph::new(WEEK_NUMBER_HEADER)
+            .style(style)
+            .alignment(Alignment::Center);
+        frame.render_widget(widget, week_area);
+    }
+
+    let labels = weekday_labels(settings.week_start);
+    let cols = column_rects(columns.days, 7);
     for (label, col_area) in labels.iter().zip(cols) {
         let widget = Paragraph::new(label.as_str())
             .style(style)
             .alignment(Alignment::Center);
         frame.render_widget(widget, col_area);
     }
+}
+
+fn week_number_style(colors: &ThemeColors) -> Style {
+    colors
+        .foreground
+        .patch_fg(colors.background.patch_bg(Style::default()))
+        .add_modifier(Modifier::DIM)
+}
+
+pub(crate) fn render_week_number(
+    week: u32,
+    colors: &ThemeColors,
+    area: Rect,
+    buf: &mut ratatui::buffer::Buffer,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let text_y = area.y + area.height.saturating_sub(1) / 2;
+    let text_area = Rect {
+        x: area.x,
+        y: text_y,
+        width: area.width,
+        height: 1.min(area.height),
+    };
+    Paragraph::new(week.to_string())
+        .style(week_number_style(colors))
+        .alignment(Alignment::Center)
+        .render(text_area, buf);
 }
 
 pub(crate) fn draw_help(frame: &mut Frame, area: Rect, settings: &Settings) {
@@ -264,6 +333,7 @@ struct CalendarGrid<'a> {
     grid: &'a MonthGrid,
     view: &'a ViewState,
     colors: &'a ThemeColors,
+    show_week_numbers: bool,
 }
 
 impl Widget for CalendarGrid<'_> {
@@ -285,7 +355,9 @@ impl Widget for CalendarGrid<'_> {
 
         let week_count = self.grid.weeks.len().max(1) as u16;
         let row_height = (inner.height / week_count).max(1);
-        let cols = column_rects(inner, 7);
+        let columns = split_week_column(inner, self.show_week_numbers, MONTH_WEEK_COL_WIDTH);
+        let day_cols = column_rects(columns.days, 7);
+        let week_numbers = self.grid.iso_week_numbers();
 
         for (row, week) in self.grid.weeks.iter().enumerate() {
             let row_y = inner.y.saturating_add(row as u16 * row_height);
@@ -299,8 +371,20 @@ impl Widget for CalendarGrid<'_> {
                 height: row_height.min(inner.y.saturating_add(inner.height) - row_y),
             };
 
+            if let Some(week_col) = columns.week_col {
+                let week_area = Rect {
+                    x: week_col.x,
+                    y: row_area.y,
+                    width: week_col.width,
+                    height: row_area.height,
+                };
+                if let Some(&iso_week) = week_numbers.get(row) {
+                    render_week_number(iso_week, self.colors, week_area, buf);
+                }
+            }
+
             for (col, cell) in week.iter().enumerate() {
-                let col_area = cols.get(col).copied().unwrap_or(row_area);
+                let col_area = day_cols.get(col).copied().unwrap_or(row_area);
                 let cell_area = Rect {
                     x: col_area.x,
                     y: row_area.y,

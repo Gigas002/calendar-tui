@@ -1,20 +1,34 @@
-# Example config for calendar-tui.
-# Copy to $XDG_CONFIG_HOME/calendar-tui/config.toml
+# Example config for calendar-tui
+#
+# Install:
+#   mkdir -p "$XDG_CONFIG_HOME/calendar-tui"
+#   cp examples/config.toml "$XDG_CONFIG_HOME/calendar-tui/config.toml"
+#   mkdir -p "$XDG_CONFIG_HOME/calendar-tui/themes"
+#   cp examples/theme.toml "$XDG_CONFIG_HOME/calendar-tui/themes/theme.toml"
+#
+# Or run with explicit paths:
+#   calendar-tui --config examples/config.toml --theme examples/theme.toml
 
 [calendar]
-# First column of the month grid: monday | tuesday | wednesday | thursday | friday | saturday | sunday
+# First column of the month grid (case-insensitive):
+#   monday | tuesday | wednesday | thursday | friday | saturday | sunday
 week_start = "monday"
-show_week_numbers = false
+
+# ISO-style week number column
+show_week_numbers = true
+
+# Theme file name or path; resolved relative to this config file, then XDG themes dir
 theme = "theme.toml"
 
 [display]
-# Starting view: month | year (switch anytime with m / y)
+# Starting view: month | year  (toggle anytime with m / y)
 default_mode = "year"
-# strftime-style formats (chrono)
+
+# strftime-style formats (chrono); used on status and header lines
 date_format = "%a, %d %b %Y"
 month_year_format = "%B %Y"
 
-# Optional key overrides (Phase 3+). Omit to use built-in defaults.
+# Optional key overrides (not implemented in v0.1.0 — built-in bindings apply)
 # [keys]
 # prev_month = ["Left", "h"]
 # next_month = ["Right", "l"]

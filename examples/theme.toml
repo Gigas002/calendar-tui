@@ -1,8 +1,11 @@
-# Example theme for calendar-tui.
-# Copy to $XDG_CONFIG_HOME/calendar-tui/themes/theme.toml
+# Example theme for calendar-tui
 #
-# Colors: #RRGGBB or #RRGGBBAA. Alpha 00 = transparent (terminal background shows through).
-# Values between 00 and FF use RGB only (terminals cannot blend alpha).
+# Install:
+#   cp examples/theme.toml "$XDG_CONFIG_HOME/calendar-tui/themes/theme.toml"
+#
+# Colors: #RRGGBB or #RRGGBBAA
+#   Alpha 00 = transparent (terminal background shows through for that layer)
+#   Alpha FF (or 6-digit hex) = opaque RGB; terminals do not blend alpha
 
 [base]
 background = "#1e1e2e00"

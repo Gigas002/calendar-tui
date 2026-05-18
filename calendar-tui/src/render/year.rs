@@ -3,8 +3,11 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
-use crate::calendar::{DayCell, MonthGrid, MAX_WEEK_ROWS};
-use crate::render::{block_style, column_rects, style_for_cell};
+use crate::calendar::{DayCell, MAX_WEEK_ROWS, MonthGrid};
+use crate::render::{
+    MINI_WEEK_COL_WIDTH, block_style, column_rects, render_week_number, split_week_column,
+    style_for_cell,
+};
 use crate::settings::Settings;
 use crate::theme::ThemeColors;
 use crate::view::{ViewMode, ViewState};
@@ -40,6 +43,7 @@ pub fn draw_year(frame: &mut ratatui::Frame, settings: &Settings) {
             grids: &settings.year_grids,
             view: &settings.view,
             colors: &settings.colors,
+            show_week_numbers: settings.show_week_numbers,
         },
         grid_area,
     );
@@ -96,6 +100,7 @@ struct YearOverview<'a> {
     grids: &'a [MonthGrid],
     view: &'a ViewState,
     colors: &'a ThemeColors,
+    show_week_numbers: bool,
 }
 
 impl Widget for YearOverview<'_> {
@@ -117,6 +122,7 @@ impl Widget for YearOverview<'_> {
                     view: self.view,
                     colors: self.colors,
                     focused,
+                    show_week_numbers: self.show_week_numbers,
                 }
                 .render(*month_area, buf);
             }
@@ -130,6 +136,7 @@ struct MiniMonth<'a> {
     view: &'a ViewState,
     colors: &'a ThemeColors,
     focused: bool,
+    show_week_numbers: bool,
 }
 
 impl Widget for MiniMonth<'_> {
@@ -156,7 +163,12 @@ impl Widget for MiniMonth<'_> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        if inner.width < 7 || inner.height < MAX_WEEK_ROWS as u16 {
+        let min_day_width = if self.show_week_numbers {
+            7 + MINI_WEEK_COL_WIDTH
+        } else {
+            7
+        };
+        if inner.width < min_day_width || inner.height < MAX_WEEK_ROWS as u16 {
             return;
         }
 
@@ -177,6 +189,9 @@ impl Widget for MiniMonth<'_> {
             return;
         }
 
+        let columns = split_week_column(inner, self.show_week_numbers, MINI_WEEK_COL_WIDTH);
+        let week_numbers = self.grid.iso_week_numbers();
+
         for (row_idx, week) in self.grid.weeks.iter().enumerate() {
             let row_y = inner.y.saturating_add(row_idx as u16 * row_height);
             let row_area = Rect {
@@ -185,7 +200,20 @@ impl Widget for MiniMonth<'_> {
                 width: inner.width,
                 height: row_height,
             };
-            let cols = column_rects(row_area, 7);
+
+            if let Some(week_col) = columns.week_col {
+                let week_area = Rect {
+                    x: week_col.x,
+                    y: row_area.y,
+                    width: week_col.width,
+                    height: row_area.height,
+                };
+                if let Some(&iso_week) = week_numbers.get(row_idx) {
+                    render_week_number(iso_week, self.colors, week_area, buf);
+                }
+            }
+
+            let cols = column_rects(columns.days, 7);
             for (col, cell) in week.iter().enumerate() {
                 let col_area = cols.get(col).copied().unwrap_or(row_area);
                 let cell_area = Rect {
