@@ -27,8 +27,3 @@ default_mode = "year"
 # strftime-style formats (chrono); used on status and header lines
 date_format = "%a, %d %b %Y"
 month_year_format = "%B %Y"
-
-# Optional key overrides (not implemented in v0.1.0 — built-in bindings apply)
-# [keys]
-# prev_month = ["Left", "h"]
-# next_month = ["Right", "l"]
