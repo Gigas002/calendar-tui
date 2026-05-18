@@ -1,3 +1,9 @@
+[default]
+extend-ignore-re = [
+    # CSS-style hex colors (e.g. Catppuccin #f38ba8FF)
+    "(?i)#[0-9a-f]{3,8}",
+]
+
 [default.extend-words]
 ratatui = "ratatui"
 
