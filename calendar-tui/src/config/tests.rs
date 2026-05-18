@@ -44,6 +44,18 @@ default_mode = "week"
 }
 
 #[test]
+fn sunday_week_start_from_config() {
+    let cfg: Config = toml::from_str(
+        r#"
+[calendar]
+week_start = "sunday"
+"#,
+    )
+    .unwrap();
+    assert_eq!(cfg.week_start(), crate::date::WeekStart::Sunday);
+}
+
+#[test]
 fn config_without_display_defaults_to_year_mode() {
     let cfg: Config = toml::from_str(
         r#"

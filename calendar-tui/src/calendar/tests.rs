@@ -1,3 +1,5 @@
+use chrono::{Datelike, Weekday};
+
 use super::{MonthGrid, MAX_WEEK_ROWS, build_year_grids};
 use crate::date::WeekStart;
 
@@ -81,12 +83,43 @@ fn year_grids_never_exceed_max_week_rows() {
 }
 
 #[test]
+fn monday_start_first_column_is_monday() {
+    let grid = MonthGrid::build(2026, 5, WeekStart::Monday);
+    assert_eq!(grid.weeks[0][0].date.weekday(), Weekday::Mon);
+}
+
+#[test]
+fn sunday_start_first_column_is_sunday() {
+    let grid = MonthGrid::build(2026, 5, WeekStart::Sunday);
+    assert_eq!(grid.weeks[0][0].date.weekday(), Weekday::Sun);
+}
+
+#[test]
+fn may_2026_first_in_month_day_column_differs_by_week_start() {
+    let monday = MonthGrid::build(2026, 5, WeekStart::Monday);
+    let sunday = MonthGrid::build(2026, 5, WeekStart::Sunday);
+    assert_eq!(column_for_in_month_day(&monday, 1), Some(4));
+    assert_eq!(column_for_in_month_day(&sunday, 1), Some(5));
+}
+
+#[test]
 fn build_year_grids_has_twelve_months() {
     let grids = build_year_grids(2026, WeekStart::Monday);
     assert_eq!(grids.len(), 12);
     assert_eq!(grids[0].month, 1);
     assert_eq!(grids[11].month, 12);
     assert_eq!(grids[4].month, 5);
+}
+
+fn column_for_in_month_day(grid: &MonthGrid, day: u32) -> Option<usize> {
+    for week in &grid.weeks {
+        for (col, cell) in week.iter().enumerate() {
+            if cell.in_month && cell.day == day {
+                return Some(col);
+            }
+        }
+    }
+    None
 }
 
 fn in_month_days(grid: &MonthGrid) -> u32 {

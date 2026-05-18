@@ -113,6 +113,21 @@ fn style_for_cell_highlights_today_in_adjacent_month() {
 }
 
 #[test]
+fn style_for_cell_uses_weekend_on_saturday() {
+    let theme: Theme = Theme::default();
+    let colors = theme.resolve().unwrap();
+    let today = naive_from_ymd(2026, 5, 18).unwrap();
+    let view = view_state(2026, 5, today, None, false);
+    let saturday = DayCell {
+        date: naive_from_ymd(2026, 5, 16).unwrap(),
+        day: 16,
+        in_month: true,
+    };
+    let style = style_for_cell(&saturday, &view, &colors);
+    assert_eq!(style.fg, Some(colors.weekend.to_rgb()));
+}
+
+#[test]
 fn style_for_cell_uses_other_month_when_not_today() {
     let theme: Theme = Theme::default();
     let colors = theme.resolve().unwrap();

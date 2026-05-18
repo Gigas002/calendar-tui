@@ -13,6 +13,42 @@ fn example_theme_toml_deserializes() {
     let colors = theme.resolve().expect("example colors should resolve");
     assert!(colors.background.is_transparent());
     assert_eq!(
+        colors.foreground,
+        ThemeColor {
+            r: 0xcd,
+            g: 0xd6,
+            b: 0xf4,
+            a: 255
+        }
+    );
+    assert_eq!(
+        colors.border,
+        ThemeColor {
+            r: 0x45,
+            g: 0x47,
+            b: 0x5a,
+            a: 255
+        }
+    );
+    assert_eq!(
+        colors.header,
+        ThemeColor {
+            r: 0xcb,
+            g: 0xa6,
+            b: 0xf7,
+            a: 255
+        }
+    );
+    assert_eq!(
+        colors.status,
+        ThemeColor {
+            r: 0xa6,
+            g: 0xe3,
+            b: 0xa1,
+            a: 255
+        }
+    );
+    assert_eq!(
         colors.today,
         ThemeColor {
             r: 0xf9,
@@ -21,6 +57,68 @@ fn example_theme_toml_deserializes() {
             a: 255
         }
     );
+    assert_eq!(
+        colors.selected,
+        ThemeColor {
+            r: 0x89,
+            g: 0xb4,
+            b: 0xfa,
+            a: 255
+        }
+    );
+    assert_eq!(
+        colors.weekend,
+        ThemeColor {
+            r: 0xf3,
+            g: 0x8b,
+            b: 0xa8,
+            a: 255
+        }
+    );
+    assert_eq!(
+        colors.other_month,
+        ThemeColor {
+            r: 0x6c,
+            g: 0x70,
+            b: 0x86,
+            a: 255
+        }
+    );
+}
+
+#[test]
+fn partial_theme_uses_defaults_for_missing_keys() {
+    let theme: Theme = toml::from_str(
+        r##"
+[base]
+foreground = "#ffffffFF"
+
+[calendar]
+weekend = "#ff0000FF"
+"##,
+    )
+    .unwrap();
+    let colors = theme.resolve().unwrap();
+    assert_eq!(
+        colors.foreground,
+        ThemeColor {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 255
+        }
+    );
+    assert_eq!(
+        colors.weekend,
+        ThemeColor {
+            r: 255,
+            g: 0,
+            b: 0,
+            a: 255
+        }
+    );
+    assert_eq!(colors.status.r, 0xa6);
+    assert_eq!(colors.other_month.r, 0x6c);
 }
 
 #[test]

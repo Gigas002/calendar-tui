@@ -255,6 +255,7 @@ pub(crate) fn column_rects(area: Rect, count: u16) -> Vec<Rect> {
     split_axis(area, count, true)
 }
 
+#[cfg(test)]
 pub(crate) fn row_rects(area: Rect, count: u16) -> Vec<Rect> {
     split_axis(area, count, false)
 }

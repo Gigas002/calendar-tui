@@ -292,8 +292,8 @@ Use existing workflows (`build`, `fmt-clippy`, `test`, `doc`, `typos`, `deny`); 
 
 ### Phase 4 — Week start + theme polish
 
-- [ ] Apply `week_start` from config to grid and weekday headers.
-- [ ] Complete `theme.toml` coverage (weekend, other_month, border, status).
+- [x] Apply `week_start` from config to grid and weekday headers.
+- [x] Complete `theme.toml` coverage (weekend, other_month, border, status).
 
 **Verify**: `monday` vs `sunday` grid tests; theme parse tests.
 

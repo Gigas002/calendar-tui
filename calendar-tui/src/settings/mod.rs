@@ -9,6 +9,8 @@ use crate::view::{ViewMode, ViewState};
 #[derive(Debug, Clone)]
 pub struct Settings {
     pub week_start: WeekStart,
+    /// Reserved for an optional week-number column (not rendered in v0.1.0).
+    #[allow(dead_code)]
     pub show_week_numbers: bool,
     pub date_format: String,
     pub month_year_format: String,

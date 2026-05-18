@@ -1,4 +1,6 @@
+use crate::calendar::MonthGrid;
 use crate::config::Config;
+use crate::date::WeekStart;
 use crate::settings::Settings;
 use crate::theme::Theme;
 use crate::view::ViewMode;
@@ -20,4 +22,21 @@ fn settings_from_examples() {
     assert_eq!(settings.grid.week_count(), 5);
     assert_eq!(settings.date_format, "%a, %d %b %Y");
     assert_eq!(settings.view.mode, ViewMode::Year);
+}
+
+#[test]
+fn sunday_week_start_from_config_changes_grid_layout() {
+    let config: Config = toml::from_str(
+        r#"
+[calendar]
+week_start = "sunday"
+"#,
+    )
+    .unwrap();
+    let theme: Theme = toml::from_str(EXAMPLE_THEME).unwrap();
+    let settings = Settings::resolve(&config, &theme).unwrap();
+    assert_eq!(settings.week_start, WeekStart::Sunday);
+
+    let monday_grid = MonthGrid::build(2026, 5, WeekStart::Monday);
+    assert_ne!(settings.grid.weeks, monday_grid.weeks);
 }
