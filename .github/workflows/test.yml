@@ -19,11 +19,6 @@ jobs:
         with:
           components: llvm-tools-preview
 
-      - name: Install Cairo/Pango (build deps)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libpango1.0-dev libcairo2-dev libxkbcommon-dev
-
       - name: Build cache
         uses: Swatinem/rust-cache@v2
 
@@ -37,28 +32,15 @@ jobs:
         run: cargo test --workspace --all-features --verbose
       - name: Run tests (--no-default-features)
         run: cargo test --workspace --no-default-features --verbose
-      - name: Generate coverage report (libabar)
+      - name: Generate coverage report (calendar-tui)
         run: |
-          cargo llvm-cov --all-features -p libabar --lcov --output-path lcov-libabar.info
-      - name: Generate coverage report (abar)
-        run: |
-          cargo llvm-cov --all-features -p abar --lcov --output-path lcov-abar.info
-      - name: Upload libabar coverage to Codecov
+          cargo llvm-cov --all-features -p calendar-tui --lcov --output-path lcov-calendar-tui.info
+      - name: Upload calendar-tui coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
-          files: ./lcov-libabar.info
-          flags: libabar
-          name: libabar
-          fail_ci_if_error: false
-          verbose: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Upload abar coverage to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          files: ./lcov-abar.info
-          flags: abar
-          name: abar
+          files: ./lcov-calendar-tui.info
+          flags: calendar-tui
+          name: calendar-tui
           fail_ci_if_error: false
           verbose: true
         env:
