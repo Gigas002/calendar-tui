@@ -1,6 +1,17 @@
-use chrono::{Datelike, Duration, NaiveDate};
+use chrono::{Datelike, Duration, NaiveDate, Weekday};
 
 use crate::date::{WeekStart, days_in_month, naive_from_ymd};
+
+/// ISO week number for a grid row (week of the row's Thursday, per ISO-8601).
+pub fn iso_week_number_for_row(week: &[DayCell; 7]) -> u32 {
+    week.iter()
+        .find(|c| c.date.weekday() == Weekday::Thu)
+        .or(week.first())
+        .expect("week row has seven days")
+        .date
+        .iso_week()
+        .week()
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DayCell {
@@ -66,6 +77,10 @@ impl MonthGrid {
 
     pub fn week_count(&self) -> usize {
         self.weeks.len()
+    }
+
+    pub fn iso_week_numbers(&self) -> Vec<u32> {
+        self.weeks.iter().map(iso_week_number_for_row).collect()
     }
 }
 

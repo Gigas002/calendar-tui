@@ -64,7 +64,10 @@ fn column_rects_splits_width_evenly() {
     let min = cols.iter().map(|r| r.width).min().unwrap();
     let max = cols.iter().map(|r| r.width).max().unwrap();
     assert!(max - min <= 1, "column widths should differ by at most 1");
-    assert_eq!(cols.last().unwrap().x + cols.last().unwrap().width, area.right());
+    assert_eq!(
+        cols.last().unwrap().x + cols.last().unwrap().width,
+        area.right()
+    );
 }
 
 #[test]
@@ -87,7 +90,10 @@ fn row_rects_splits_height_evenly() {
     let min = rows.iter().map(|r| r.height).min().unwrap();
     let max = rows.iter().map(|r| r.height).max().unwrap();
     assert!(max - min <= 1);
-    assert_eq!(rows.last().unwrap().y + rows.last().unwrap().height, area.bottom());
+    assert_eq!(
+        rows.last().unwrap().y + rows.last().unwrap().height,
+        area.bottom()
+    );
 }
 
 #[test]
@@ -140,6 +146,42 @@ fn style_for_cell_uses_other_month_when_not_today() {
     };
     let style = style_for_cell(&cell, &view, &colors);
     assert_eq!(style.fg, Some(colors.other_month.to_rgb()));
+}
+
+#[test]
+fn split_week_column_reserves_fixed_width() {
+    let area = Rect::new(0, 0, 40, 1);
+    let columns = super::split_week_column(area, true, 4);
+    let week_col = columns.week_col.expect("week column");
+    assert_eq!(week_col.width, 4);
+    assert_eq!(columns.days.width, 36);
+    assert_eq!(columns.days.x, 4);
+}
+
+#[test]
+fn draw_month_with_week_numbers_shows_header_and_iso_weeks() {
+    let today = naive_from_ymd(2026, 5, 18).unwrap();
+    let mut settings = example_settings_for_view(2026, 5, today);
+    settings.show_week_numbers = true;
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|f| draw(f, &settings))
+        .expect("draw should succeed");
+    let content: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|c| c.symbol())
+        .collect();
+    assert!(content.contains("Wk"));
+    let first_week = settings.grid.iso_week_numbers()[0];
+    assert!(
+        content.contains(&first_week.to_string()),
+        "expected ISO week {first_week} in output"
+    );
 }
 
 #[test]
