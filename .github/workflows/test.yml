@@ -36,7 +36,7 @@ jobs:
         run: |
           cargo llvm-cov --all-features -p calendar-tui --lcov --output-path lcov-calendar-tui.info
       - name: Upload calendar-tui coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: ./lcov-calendar-tui.info
           flags: calendar-tui
