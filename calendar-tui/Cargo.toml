@@ -19,7 +19,6 @@ provider = []
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 clap = { version = "4", features = ["derive"] }
-crossterm = "0.29"
 ratatui = { version = "0.30", default-features = false, features = ["crossterm", "std"] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
