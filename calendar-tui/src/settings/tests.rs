@@ -20,7 +20,12 @@ fn settings_from_examples() {
     let theme: Theme = toml::from_str(EXAMPLE_THEME).unwrap();
     let settings = Settings::resolve(&config, &theme).unwrap();
     assert!(settings.show_week_numbers);
-    assert_eq!(settings.grid.week_count(), 5);
+    let expected_grid = MonthGrid::build(
+        settings.view.view_year,
+        settings.view.view_month,
+        settings.week_start,
+    );
+    assert_eq!(settings.grid.week_count(), expected_grid.week_count());
     assert_eq!(settings.date_format, "%a, %d %b %Y");
     assert_eq!(settings.view.mode, ViewMode::Year);
 }
