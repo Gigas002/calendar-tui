@@ -67,10 +67,7 @@ impl MonthGrid {
             tail += Duration::days(1);
         }
 
-        let weeks = cells
-            .chunks_exact(7)
-            .map(|chunk| chunk.try_into().expect("chunk length 7"))
-            .collect();
+        let weeks = cells.as_chunks::<7>().0.to_vec();
 
         Self { year, month, weeks }
     }
