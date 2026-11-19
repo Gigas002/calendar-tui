@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A config or theme file that doesn't exist was silently replaced by the defaults, even when
+  named with `--config`, `--theme` or the config's `theme` key. Named files must now exist. A
+  missing file at the default location still means the defaults, and no longer prints a
+  warning on every start.
 - Unknown sections and keys in `config.toml` and the theme were ignored, so a typo like
   `weekstart = "sunday"` silently kept the default. They're now errors that name the key.
 - A theme color with a non-ASCII character (`"#aéééb"`) crashed `calendar-tui`, and one with a

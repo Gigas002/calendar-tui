@@ -138,14 +138,14 @@ impl Theme {
         })
     }
 
-    pub fn load_or_default(path: &Path) -> Self {
-        match Self::load(path) {
-            Ok(theme) => theme,
-            Err(err) => {
-                tracing::warn!(%err, path = %path.display(), "theme unavailable, using defaults");
-                Self::default()
-            }
+    /// Loads `path` if it's there. A file the user named (`required`) must exist; the default
+    /// location may be missing, which means the defaults.
+    pub fn load_from(path: &Path, required: bool) -> Result<Self, Error> {
+        if !required && !path.exists() {
+            tracing::debug!(path = %path.display(), "no theme file, using defaults");
+            return Ok(Self::default());
         }
+        Self::load(path)
     }
 
     pub fn resolve(&self) -> Result<ThemeColors, Error> {

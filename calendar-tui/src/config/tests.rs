@@ -108,3 +108,45 @@ fn unknown_keys_are_errors_that_name_the_key() {
         assert!(err.contains(key), "{key}: {err}");
     }
 }
+
+/// A config file named with `--config` that doesn't exist used to fall back to the
+/// defaults with a warning; only the default location may be missing.
+#[test]
+fn load_from_requires_a_named_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let missing = dir.path().join("nope.toml");
+
+    let err = Config::load_from(&missing, true).unwrap_err().to_string();
+    assert!(err.contains("nope.toml"), "{err}");
+    // No file at the default location: defaults, and no theme named (so a missing default
+    // theme isn't an error either).
+    let config = Config::load_from(&missing, false).unwrap();
+    assert!(!config.theme_is_set());
+    assert_eq!(config.theme_name(), "theme.toml");
+
+    let err = Theme::load_from(&missing, true).unwrap_err().to_string();
+    assert!(err.contains("nope.toml"), "{err}");
+    assert!(Theme::load_from(&missing, false).is_ok());
+
+    let present = dir.path().join("config.toml");
+    std::fs::write(&present, "[calendar]\nweek_start = \"sunday\"\n").unwrap();
+    for required in [true, false] {
+        let config = Config::load_from(&present, required).unwrap();
+        assert_eq!(config.week_start(), crate::date::WeekStart::Sunday);
+    }
+}
+
+#[test]
+fn theme_is_set_only_when_the_config_names_one() {
+    assert!(!toml::from_str::<Config>("").unwrap().theme_is_set());
+    assert!(
+        !toml::from_str::<Config>("[calendar]")
+            .unwrap()
+            .theme_is_set()
+    );
+    assert!(
+        toml::from_str::<Config>("[calendar]\ntheme = \"x.toml\"")
+            .unwrap()
+            .theme_is_set()
+    );
+}
