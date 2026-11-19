@@ -75,18 +75,29 @@ pub fn weekday_labels(week_start: WeekStart) -> [String; 7] {
     std::array::from_fn(|i| WEEKDAY_LABELS[(i + offset) % 7].to_string())
 }
 
+/// Whether `cell` is the day picked in selection mode.
+fn is_selected(cell: &DayCell, view: &ViewState) -> bool {
+    view.selection_mode && cell.in_month && view.selected_day == Some(cell.day)
+}
+
 pub fn style_for_cell(cell: &DayCell, view: &ViewState, colors: &ThemeColors) -> Style {
     let base = colors.cell_base();
 
     if cell.date == view.today {
-        return colors.today.patch_fg(base).add_modifier(Modifier::BOLD);
+        // Today keeps its color when selected; the reversal still shows the selection.
+        let style = colors.today.patch_fg(base).add_modifier(Modifier::BOLD);
+        return if is_selected(cell, view) {
+            style.add_modifier(Modifier::REVERSED)
+        } else {
+            style
+        };
     }
 
     if !cell.in_month {
         return colors.other_month.patch_fg(base);
     }
 
-    if view.selection_mode && cell.in_month && view.selected_day == Some(cell.day) {
+    if is_selected(cell, view) {
         return colors
             .selected
             .patch_fg(base)
@@ -408,10 +419,13 @@ fn render_day_cell(
 ) {
     let day_str = cell.day.to_string();
     let line = if cell.date == view.today {
-        let day_style = colors
+        let mut day_style = colors
             .today
             .patch_fg(colors.background.patch_bg(Style::default()))
             .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+        if is_selected(cell, view) {
+            day_style = day_style.add_modifier(Modifier::REVERSED);
+        }
         Line::from(Span::styled(day_str, day_style))
     } else {
         Line::from(Span::styled(day_str, style_for_cell(cell, view, colors)))

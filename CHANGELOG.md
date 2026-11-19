@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- In month view, selecting today (what `Space` does first) showed no selection: today's style
+  hid it. Today is now shown reversed when selected.
 - A config or theme file that doesn't exist was silently replaced by the defaults, even when
   named with `--config`, `--theme` or the config's `theme` key. Named files must now exist. A
   missing file at the default location still means the defaults, and no longer prints a

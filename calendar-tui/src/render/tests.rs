@@ -307,3 +307,33 @@ fn unknown_format_directives_render_as_written() {
         }
     }
 }
+
+/// Space selects today by default, but today's style took precedence over the selection, so
+/// nothing looked selected until the selection moved off today.
+#[test]
+fn selected_today_is_drawn_as_selected() {
+    let today = naive_from_ymd(2026, 5, 18).unwrap();
+    let mut settings = example_settings_for_view(2026, 5, today);
+    settings.view.selection_mode = true;
+    settings.view.selected_day = Some(18);
+    let mut terminal = Terminal::new(TestBackend::new(80, 30)).unwrap();
+    terminal.draw(|f| draw(f, &settings)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let selected: String = buffer
+        .content()
+        .iter()
+        .filter(|c| c.modifier.contains(Modifier::REVERSED))
+        .map(|c| c.symbol())
+        .collect();
+    assert_eq!(selected, "18");
+    let cell = buffer
+        .content()
+        .iter()
+        .find(|c| c.modifier.contains(Modifier::REVERSED))
+        .unwrap();
+    assert_eq!(
+        cell.fg,
+        settings.colors.today.to_rgb(),
+        "today keeps its color"
+    );
+}
