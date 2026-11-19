@@ -357,35 +357,64 @@ fn year_screen(width: u16, height: u16) -> String {
 }
 
 #[test]
-fn year_layout_steps_down_with_the_height() {
+fn year_layout_steps_down_with_the_terminal_size() {
     use super::year::YearLayout;
-    assert_eq!(YearLayout::for_height(40), YearLayout::Full);
-    assert_eq!(YearLayout::for_height(33), YearLayout::Full);
-    assert_eq!(YearLayout::for_height(32), YearLayout::Compact);
-    assert_eq!(YearLayout::for_height(26), YearLayout::Compact);
-    assert_eq!(YearLayout::for_height(25), YearLayout::Bare);
-    assert_eq!(YearLayout::for_height(23), YearLayout::Bare);
-    assert_eq!(YearLayout::for_height(22), YearLayout::TooSmall);
+    let layout = |w, h, weeks| {
+        YearLayout::choose(w, h, weeks)
+            .map(|l| (l.per_row, l.full_chrome, l.bordered, l.week_numbers))
+    };
+    // Roomy: four months a row, everything on.
+    assert_eq!(layout(120, 40, true), Some((4, true, true, true)));
+    // Shorter: the status and header shrink, then the borders go.
+    assert_eq!(layout(120, 30, true), Some((4, false, true, true)));
+    assert_eq!(layout(120, 24, true), Some((4, false, false, true)));
+    // Narrower: three months a row (taller) rather than squeezed days.
+    assert_eq!(layout(100, 40, true), Some((3, false, true, true)));
+    assert_eq!(layout(80, 40, true), Some((3, false, true, true)));
+    // Week numbers go only when nothing fits with them.
+    assert_eq!(layout(96, 24, true), Some((4, false, false, false)));
+    assert_eq!(layout(96, 24, false), Some((4, false, false, false)));
+    // Too small for any of it.
+    assert_eq!(layout(80, 24, true), None);
+    assert_eq!(layout(120, 22, false), None);
 }
 
-/// Each mini month needs six week rows; below 33 lines the base drew the boxes empty (all of
-/// them on a 24-line terminal, the last row of months at 32 lines).
+/// Every day of every month must be drawn, and readable: in the base, mini months below 33
+/// lines were empty boxes, and below ~110 columns days ran together ("28293031") or into the
+/// week number ("526 27").
 #[test]
-fn every_month_shows_its_days_down_to_23_lines() {
-    for height in [23, 24, 26, 30, 32, 33, 40] {
-        let screen = year_screen(120, height);
+fn every_month_shows_readable_days_wherever_the_year_view_fits() {
+    for (width, height) in [
+        (120, 23),
+        (120, 26),
+        (120, 33),
+        (100, 40),
+        (80, 34),
+        (160, 50),
+    ] {
+        let screen = year_screen(width, height);
         for month in ["Jan", "Jun", "Dec"] {
-            assert!(screen.contains(month), "{height} lines: no {month}");
+            assert!(
+                screen.contains(month),
+                "{width}x{height}: no {month}\n{screen}"
+            );
         }
         // The 31st appears in the seven 31-day months of 2026 (and as padding).
-        let thirty_firsts = screen.matches("31").count();
-        assert!(thirty_firsts >= 7, "{height} lines: days missing\n{screen}");
+        let thirty_firsts = screen.matches(" 31").count();
+        assert!(
+            thirty_firsts >= 7,
+            "{width}x{height}: days missing\n{screen}"
+        );
+        // No two day numbers (or a week number and a day) touch.
+        for run in ["2829", "2930", "3031", "1011", "1112", "526"] {
+            assert!(!screen.contains(run), "{width}x{height}: {run:?}\n{screen}");
+        }
     }
 }
 
 #[test]
-fn too_short_for_the_year_view_says_so() {
-    let screen = year_screen(120, 20);
-    assert!(screen.contains("needs 23 lines"), "{screen}");
+fn too_small_for_the_year_view_says_so() {
+    let screen = year_screen(80, 24);
+    assert!(screen.contains("needs at least"), "{screen}");
     assert!(screen.contains("m: month view"), "{screen}");
 }

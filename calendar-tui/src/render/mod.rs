@@ -15,7 +15,7 @@ use crate::view::{ViewMode, ViewState};
 const WEEKDAY_LABELS: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const WEEK_NUMBER_HEADER: &str = "Wk";
 const MONTH_WEEK_COL_WIDTH: u16 = 4;
-pub(crate) const MINI_WEEK_COL_WIDTH: u16 = 2;
+pub(crate) const MINI_WEEK_COL_WIDTH: u16 = 3;
 const HELP_MONTH_NAV: &str = "h/l month  j/k year  esc year-view  t today  space select  q quit";
 const HELP_MONTH_SELECT: &str = "h/l day  k/j week  esc year-view  space exit  t today  q quit";
 const HELP_YEAR: &str = "h/l month  j/k year  enter month-view  t today  q quit";
