@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Warnings and errors were written to standard output, not standard error.
 - The year view needed 33 lines: on a 24-line terminal every month was an empty box, and up to
   32 lines the last row was. Below about 110 columns, days ran together (`28293031`) and into
   the week numbers (`526 27`). The year view now fits itself to the terminal: three months a
