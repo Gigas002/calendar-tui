@@ -27,6 +27,7 @@ jobs:
       matrix:
         features:
           - --all-features
+          - ""
           - --no-default-features
 
     runs-on: ubuntu-latest
@@ -40,6 +41,6 @@ jobs:
       - name: Build cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.features }}
-      - name: Clippy (${{ matrix.features }})
+          key: clippy${{ matrix.features }}
+      - name: Clippy (${{ matrix.features || 'default' }})
         run: cargo clippy --workspace --all-targets ${{ matrix.features }} -- -D warnings
