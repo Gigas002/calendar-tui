@@ -7,12 +7,14 @@ use crate::config::config_dir;
 use crate::error::Error;
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Theme {
     pub base: Option<Base>,
     pub calendar: Option<Calendar>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Base {
     pub background: Option<String>,
     pub foreground: Option<String>,
@@ -20,6 +22,7 @@ pub struct Base {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Calendar {
     pub header: Option<String>,
     pub status: Option<String>,

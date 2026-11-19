@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unknown sections and keys in `config.toml` and the theme were ignored, so a typo like
+  `weekstart = "sunday"` silently kept the default. They're now errors that name the key.
 - A theme color with a non-ASCII character (`"#aéééb"`) crashed `calendar-tui`, and one with a
   sign (`"#+f+f+f"`) was accepted. Both are now errors, and color errors name the key, the value
   and the theme file.

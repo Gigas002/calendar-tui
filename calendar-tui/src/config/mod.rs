@@ -7,12 +7,14 @@ use crate::error::Error;
 use crate::view::ViewMode;
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub calendar: Option<Calendar>,
     pub display: Option<Display>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Calendar {
     pub week_start: Option<WeekStart>,
     pub show_week_numbers: Option<bool>,
@@ -20,6 +22,7 @@ pub struct Calendar {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Display {
     pub date_format: Option<String>,
     pub month_year_format: Option<String>,

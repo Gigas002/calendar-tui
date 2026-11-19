@@ -196,3 +196,15 @@ fn invalid_theme_color_error_names_the_key_and_value() {
     assert!(err.contains("calendar.today"), "{err}");
     assert!(err.contains("#zz0000"), "{err}");
 }
+
+#[test]
+fn unknown_theme_keys_are_errors_that_name_the_key() {
+    for (toml, key) in [
+        ("[calendar]\nweekends = \"#ff0000\"", "weekends"),
+        ("[base]\nbg_colour = \"#000000\"", "bg_colour"),
+        ("[colours]\ntoday = \"#ff0000\"", "colours"),
+    ] {
+        let err = toml::from_str::<Theme>(toml).unwrap_err().to_string();
+        assert!(err.contains(key), "{key}: {err}");
+    }
+}

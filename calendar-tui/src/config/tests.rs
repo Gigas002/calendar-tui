@@ -95,3 +95,16 @@ week_start = "monday"
     .unwrap();
     assert_eq!(cfg.default_mode(), ViewMode::Year);
 }
+
+/// A misspelled key used to be ignored, so the setting silently kept its default.
+#[test]
+fn unknown_keys_are_errors_that_name_the_key() {
+    for (toml, key) in [
+        ("[calendar]\nweekstart = \"sunday\"", "weekstart"),
+        ("[display]\ndefault_view = \"month\"", "default_view"),
+        ("[calender]\nweek_start = \"sunday\"", "calender"),
+    ] {
+        let err = toml::from_str::<Config>(toml).unwrap_err().to_string();
+        assert!(err.contains(key), "{key}: {err}");
+    }
+}
