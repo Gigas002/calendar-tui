@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An unknown directive in `date_format` or `month_year_format` (a typo like `%Q`) crashed
+  `calendar-tui` on its first draw. It's now shown as written.
 - A crash while the calendar was on screen printed its message to the alternate screen, which
   was then cleared: `calendar-tui` exited with status 101 and no explanation. The terminal is
   now restored first, so the message stays visible. If setting up the terminal fails half-way,

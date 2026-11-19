@@ -281,3 +281,29 @@ fn draw_year_renders_all_month_titles() {
         assert!(content.contains(name), "missing month title {name}");
     }
 }
+
+/// chrono panicked mid-draw on a directive it didn't know ("%Q"); jiff prints the directive
+/// as written, so a typo in the config shows up on screen instead of crashing.
+#[test]
+fn unknown_format_directives_render_as_written() {
+    let today = naive_from_ymd(2026, 5, 18).unwrap();
+    let mut settings = example_settings_for_view(2026, 5, today);
+    settings.date_format = "%Q %d".to_string();
+    settings.month_year_format = "%B %E".to_string();
+    for mode in [ViewMode::Month, ViewMode::Year] {
+        settings.view.mode = mode;
+        let mut terminal = Terminal::new(TestBackend::new(100, 40)).unwrap();
+        terminal.draw(|f| draw(f, &settings)).unwrap();
+        let text: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect();
+        assert!(text.contains("%Q 18"), "{mode:?}: status line missing");
+        if mode == ViewMode::Month {
+            assert!(text.contains("May %E"), "header missing");
+        }
+    }
+}
