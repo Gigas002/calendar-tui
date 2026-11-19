@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 pub use jiff::civil::{Date, Weekday};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
@@ -55,6 +57,20 @@ pub const MAX_YEAR: i16 = 9998;
 
 pub fn today_local() -> Date {
     jiff::ZonedDateTime::now().date()
+}
+
+/// Longest wait between checks of the date: the next midnight is computed from the clock as it
+/// is now, and a suspend or a clock change can move midnight closer without waking us.
+pub const MAX_DATE_CHECK_INTERVAL: Duration = Duration::from_secs(60);
+
+/// How long to wait from `now` before the date can have changed: until the next local
+/// midnight, at most [`MAX_DATE_CHECK_INTERVAL`].
+pub fn until_date_check(now: &jiff::ZonedDateTime) -> Duration {
+    now.tomorrow()
+        .and_then(|next| next.start_of_day())
+        .ok()
+        .and_then(|midnight| Duration::try_from(now.duration_until(&midnight)).ok())
+        .map_or(MAX_DATE_CHECK_INTERVAL, |d| d.min(MAX_DATE_CHECK_INTERVAL))
 }
 
 pub fn days_in_month(year: i16, month: i8) -> i8 {

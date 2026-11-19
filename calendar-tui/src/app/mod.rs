@@ -1,6 +1,5 @@
 use std::io::{self, IsTerminal, Stdout, stdout};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
@@ -11,6 +10,7 @@ use ratatui::crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
 
+use crate::date::{Date, today_local, until_date_check};
 use crate::error::Error;
 use crate::render;
 use crate::settings::Settings;
@@ -31,6 +31,16 @@ impl App {
 
     fn quit(&mut self) {
         self.running = false;
+    }
+
+    /// Moves "today" to `today` if the date has changed (the calendar stayed open past
+    /// midnight). Returns whether it did, so the screen is redrawn.
+    fn set_today(&mut self, today: Date) -> bool {
+        if self.settings.view.today == today {
+            return false;
+        }
+        self.settings.view.today = today;
+        true
     }
 
     fn handle_key(&mut self, key: KeyEvent) {
@@ -236,22 +246,37 @@ pub fn run(settings: Settings) -> Result<(), Error> {
 
     let mut app = App::new(settings);
     let mut tty = Tty::enter()?;
+    let mut redraw = true;
 
+    // Draws only when something changed: a key, a resize, or the date. Between those it
+    // sleeps in `poll` until the next midnight (at most a minute), instead of redrawing
+    // ten times a second.
     while app.running {
-        tty.terminal
-            .draw(|frame| render::draw(frame, &app.settings))
-            .map_err(Error::Terminal)?;
+        if redraw {
+            tty.terminal
+                .draw(|frame| render::draw(frame, &app.settings))
+                .map_err(Error::Terminal)?;
+            redraw = false;
+        }
 
-        if event::poll(Duration::from_millis(100)).map_err(Error::Terminal)? {
-            let Event::Key(key) = event::read().map_err(Error::Terminal)? else {
-                continue;
-            };
-            if key.kind != KeyEventKind::Press {
-                continue;
+        let now = jiff::ZonedDateTime::now();
+        if event::poll(until_date_check(&now)).map_err(Error::Terminal)? {
+            match event::read().map_err(Error::Terminal)? {
+                Event::Key(key) if key.kind == KeyEventKind::Press => {
+                    app.handle_key(key);
+                    redraw = true;
+                }
+                Event::Resize(..) => redraw = true,
+                _ => {}
             }
-            app.handle_key(key);
+        }
+        if app.set_today(today_local()) {
+            redraw = true;
         }
     }
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests;

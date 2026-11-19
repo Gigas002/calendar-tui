@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Left open past midnight, the calendar kept showing yesterday as today. It now moves to the
+  new day at midnight.
+- The calendar redrew itself ten times a second while idle. It now redraws only on a key, a
+  resize or a new day, and otherwise doesn't wake up at all (until midnight, or once a
+  minute at most).
 - In month view, selecting today (what `Space` does first) showed no selection: today's style
   hid it. Today is now shown reversed when selected.
 - A config or theme file that doesn't exist was silently replaced by the defaults, even when
