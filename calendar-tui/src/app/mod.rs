@@ -1,9 +1,11 @@
 use std::io::{self, IsTerminal, Stdout, stdout};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::crossterm::ExecutableCommand;
+use ratatui::crossterm::cursor::Show;
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -179,30 +181,51 @@ struct Tty {
     terminal: Terminal<CrosstermBackend<Stdout>>,
 }
 
+/// Whether raw mode and the alternate screen are on, so they're undone exactly once: leaving
+/// the alternate screen twice moves the cursor back over whatever was printed in between.
+static TERMINAL_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Puts the terminal back the way the shell expects it, once. Errors are ignored: this runs
+/// on the way out, where there's nothing better to do.
+fn restore_terminal() {
+    if !TERMINAL_ACTIVE.swap(false, Ordering::SeqCst) {
+        return;
+    }
+    let _ = disable_raw_mode();
+    let _ = stdout().execute(LeaveAlternateScreen);
+    let _ = stdout().execute(Show);
+}
+
 impl Tty {
     fn enter() -> Result<Self, Error> {
-        enable_raw_mode().map_err(Error::Terminal)?;
-        stdout()
-            .execute(EnterAlternateScreen)
-            .map_err(Error::Terminal)?;
-        let backend = CrosstermBackend::new(stdout());
-        let terminal = Terminal::new(backend).map_err(Error::Terminal)?;
-        Ok(Self { terminal })
-    }
+        // A panic prints its message before unwinding drops the `Tty`, so without this the
+        // message lands on the alternate screen and is wiped when it's left.
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            restore_terminal();
+            previous(info);
+        }));
 
-    fn leave(&mut self) -> Result<(), Error> {
-        disable_raw_mode().map_err(Error::Terminal)?;
-        stdout()
-            .execute(LeaveAlternateScreen)
-            .map_err(Error::Terminal)?;
-        self.terminal.show_cursor().map_err(Error::Terminal)?;
-        Ok(())
+        TERMINAL_ACTIVE.store(true, Ordering::SeqCst);
+        let setup = || -> io::Result<_> {
+            enable_raw_mode()?;
+            stdout().execute(EnterAlternateScreen)?;
+            Terminal::new(CrosstermBackend::new(stdout()))
+        };
+        match setup() {
+            Ok(terminal) => Ok(Self { terminal }),
+            // Half set up (raw mode on, no alternate screen): undo what was done.
+            Err(err) => {
+                restore_terminal();
+                Err(Error::Terminal(err))
+            }
+        }
     }
 }
 
 impl Drop for Tty {
     fn drop(&mut self) {
-        let _ = self.leave();
+        restore_terminal();
     }
 }
 
