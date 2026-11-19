@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dates use `jiff` instead of `chrono`, which is unmaintained (RUSTSEC-2026-0543). Navigation
   now stops at the years -9998 and 9998.
+- Logging: only warnings and errors by default (it was `info`, so every start left a line in
+  the shell), without timestamps, and without color codes when stderr isn't a terminal.
+  `RUST_LOG` takes a level (`RUST_LOG=debug`); per-module filters are gone.
 
 ### Fixed
 

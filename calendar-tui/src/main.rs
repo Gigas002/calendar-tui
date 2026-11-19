@@ -54,7 +54,7 @@ fn main() -> ExitCode {
         }
     };
 
-    tracing::info!(
+    tracing::debug!(
         week_start = ?settings.week_start,
         view_mode = ?settings.view.mode,
         weeks = settings.grid.week_count(),
