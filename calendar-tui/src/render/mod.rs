@@ -1,4 +1,3 @@
-use chrono::{Datelike, Weekday};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -8,7 +7,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 mod year;
 
 use crate::calendar::{DayCell, MonthGrid};
-use crate::date::{WeekStart, naive_from_ymd};
+use crate::date::{WeekStart, Weekday, naive_from_ymd};
 use crate::settings::Settings;
 use crate::theme::ThemeColors;
 use crate::view::{ViewMode, ViewState};
@@ -94,7 +93,7 @@ pub fn style_for_cell(cell: &DayCell, view: &ViewState, colors: &ThemeColors) ->
             .add_modifier(Modifier::REVERSED);
     }
 
-    if matches!(cell.date.weekday(), Weekday::Sat | Weekday::Sun) {
+    if matches!(cell.date.weekday(), Weekday::Saturday | Weekday::Sunday) {
         return colors.weekend.patch_fg(base);
     }
 
@@ -141,7 +140,7 @@ fn draw_status(frame: &mut Frame, area: Rect, settings: &Settings) {
     let today_line = settings
         .view
         .today
-        .format(&settings.date_format)
+        .strftime(&settings.date_format)
         .to_string();
     let text = format!("{}    Weeks: {}", today_line, settings.grid.week_count());
 
@@ -164,7 +163,7 @@ fn draw_status(frame: &mut Frame, area: Rect, settings: &Settings) {
 
 fn draw_header(frame: &mut Frame, area: Rect, settings: &Settings) {
     let text = naive_from_ymd(settings.view.view_year, settings.view.view_month, 1)
-        .map(|d| d.format(&settings.month_year_format).to_string())
+        .map(|d| d.strftime(&settings.month_year_format).to_string())
         .unwrap_or_else(|| format!("{} / {}", settings.view.view_month, settings.view.view_year));
 
     let widget = Paragraph::new(text)
@@ -247,7 +246,7 @@ fn week_number_style(colors: &ThemeColors) -> Style {
 }
 
 pub(crate) fn render_week_number(
-    week: u32,
+    week: i8,
     colors: &ThemeColors,
     area: Rect,
     buf: &mut ratatui::buffer::Buffer,

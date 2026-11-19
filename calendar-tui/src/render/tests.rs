@@ -1,4 +1,3 @@
-use chrono::NaiveDate;
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::style::Modifier;
@@ -8,12 +7,12 @@ use ratatui::layout::Rect;
 use super::{column_rects, day_line, draw, row_rects, style_for_cell, weekday_labels};
 use crate::calendar::MAX_WEEK_ROWS;
 use crate::calendar::{DayCell, MonthGrid, build_year_grids};
-use crate::date::{WeekStart, naive_from_ymd};
+use crate::date::{Date, WeekStart, naive_from_ymd};
 use crate::settings::Settings;
 use crate::theme::Theme;
 use crate::view::{ViewMode, ViewState};
 
-fn example_settings_for_view(year: i32, month: u32, today: NaiveDate) -> Settings {
+fn example_settings_for_view(year: i16, month: i8, today: Date) -> Settings {
     let config: crate::config::Config = toml::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../examples/config.toml"
@@ -37,10 +36,10 @@ fn example_settings_for_view(year: i32, month: u32, today: NaiveDate) -> Setting
 }
 
 fn view_state(
-    year: i32,
-    month: u32,
-    today: NaiveDate,
-    selected_day: Option<u32>,
+    year: i16,
+    month: i8,
+    today: Date,
+    selected_day: Option<i8>,
     selection_mode: bool,
 ) -> ViewState {
     ViewState {

@@ -54,7 +54,7 @@ fn draw_year_status(frame: &mut ratatui::Frame, area: Rect, settings: &Settings)
     let today_line = settings
         .view
         .today
-        .format(&settings.date_format)
+        .strftime(&settings.date_format)
         .to_string();
     let text = format!("{}    Year: {}", today_line, settings.view.view_year);
 
@@ -113,7 +113,7 @@ impl Widget for YearOverview<'_> {
         for (row_idx, row_area) in rows.iter().enumerate() {
             let cols = Layout::horizontal([Constraint::Ratio(1, 1); 4]).split(*row_area);
             for (col_idx, month_area) in cols.iter().enumerate() {
-                let month = (row_idx * 4 + col_idx + 1) as u32;
+                let month = (row_idx * 4 + col_idx + 1) as i8;
                 let grid = &self.grids[(month - 1) as usize];
                 let focused = self.view.focused_month == month;
                 MiniMonth {
@@ -131,7 +131,7 @@ impl Widget for YearOverview<'_> {
 }
 
 struct MiniMonth<'a> {
-    month: u32,
+    month: i8,
     grid: &'a MonthGrid,
     view: &'a ViewState,
     colors: &'a ThemeColors,

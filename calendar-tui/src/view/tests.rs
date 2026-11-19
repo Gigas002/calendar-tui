@@ -1,11 +1,9 @@
-use chrono::Datelike;
-
 use super::{ViewMode, ViewState};
 
 fn month_view(
-    view_year: i32,
-    view_month: u32,
-    selected_day: Option<u32>,
+    view_year: i16,
+    view_month: i8,
+    selected_day: Option<i8>,
     selection_mode: bool,
 ) -> ViewState {
     ViewState {
@@ -135,4 +133,26 @@ fn focus_prev_month_stops_at_january() {
     view.set_mode(ViewMode::Year);
     view.focus_prev_month();
     assert_eq!(view.focused_month, 1);
+}
+
+#[test]
+fn years_stop_at_the_supported_range() {
+    use crate::calendar::MonthGrid;
+    use crate::date::{MAX_YEAR, MIN_YEAR, WeekStart};
+
+    let mut view = month_view(MAX_YEAR, 12, None, false);
+    view.next_year();
+    view.next_month();
+    assert_eq!((view.view_year, view.view_month), (MAX_YEAR, 12));
+
+    let mut view = month_view(MIN_YEAR, 1, None, false);
+    view.prev_year();
+    view.prev_month();
+    assert_eq!((view.view_year, view.view_month), (MIN_YEAR, 1));
+
+    // The months at both ends build, padding included, for every week start.
+    for start in WeekStart::ALL {
+        assert!(MonthGrid::build(MAX_YEAR, 12, start).weeks.last().unwrap()[0].in_month);
+        assert!(MonthGrid::build(MIN_YEAR, 1, start).weeks[0][6].in_month);
+    }
 }

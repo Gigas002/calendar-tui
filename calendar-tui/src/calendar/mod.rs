@@ -1,22 +1,20 @@
-use chrono::{Datelike, Duration, NaiveDate, Weekday};
-
-use crate::date::{WeekStart, days_in_month, naive_from_ymd};
+use crate::date::{Date, WeekStart, Weekday, days_in_month, naive_from_ymd};
 
 /// ISO week number for a grid row (week of the row's Thursday, per ISO-8601).
-pub fn iso_week_number_for_row(week: &[DayCell; 7]) -> u32 {
+pub fn iso_week_number_for_row(week: &[DayCell; 7]) -> i8 {
     week.iter()
-        .find(|c| c.date.weekday() == Weekday::Thu)
+        .find(|c| c.date.weekday() == Weekday::Thursday)
         .or(week.first())
         .expect("week row has seven days")
         .date
-        .iso_week()
+        .iso_week_date()
         .week()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DayCell {
-    pub date: NaiveDate,
-    pub day: u32,
+    pub date: Date,
+    pub day: i8,
     pub in_month: bool,
 }
 
@@ -25,22 +23,23 @@ pub const MAX_WEEK_ROWS: usize = 6;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MonthGrid {
-    pub year: i32,
-    pub month: u32,
+    pub year: i16,
+    pub month: i8,
     pub weeks: Vec<[DayCell; 7]>,
 }
 
 impl MonthGrid {
-    pub fn build(year: i32, month: u32, week_start: WeekStart) -> Self {
+    pub fn build(year: i16, month: i8, week_start: WeekStart) -> Self {
         let first = naive_from_ymd(year, month, 1).expect("valid month start");
         let len = days_in_month(year, month);
-        let last = naive_from_ymd(year, month, len).expect("valid month end");
         let start_col = week_start.column_for(first.weekday()) as usize;
 
         let mut cells: Vec<DayCell> = Vec::new();
 
         for offset in (0..start_col).rev() {
-            let date = first - Duration::days((offset + 1) as i64);
+            let date = first
+                .checked_sub(jiff::Span::new().days(offset as i64 + 1))
+                .expect("years are kept inside the date range (date::MIN_YEAR)");
             cells.push(DayCell {
                 date,
                 day: date.day(),
@@ -57,14 +56,16 @@ impl MonthGrid {
             });
         }
 
-        let mut tail = last + Duration::days(1);
+        let mut tail = first.last_of_month();
         while !cells.is_empty() && !cells.len().is_multiple_of(7) {
+            tail = tail
+                .tomorrow()
+                .expect("years are kept inside the date range (date::MAX_YEAR)");
             cells.push(DayCell {
                 date: tail,
                 day: tail.day(),
                 in_month: false,
             });
-            tail += Duration::days(1);
         }
 
         let weeks = cells.as_chunks::<7>().0.to_vec();
@@ -76,12 +77,12 @@ impl MonthGrid {
         self.weeks.len()
     }
 
-    pub fn iso_week_numbers(&self) -> Vec<u32> {
+    pub fn iso_week_numbers(&self) -> Vec<i8> {
         self.weeks.iter().map(iso_week_number_for_row).collect()
     }
 }
 
-pub fn build_year_grids(year: i32, week_start: WeekStart) -> Vec<MonthGrid> {
+pub fn build_year_grids(year: i16, week_start: WeekStart) -> Vec<MonthGrid> {
     (1..=12)
         .map(|month| MonthGrid::build(year, month, week_start))
         .collect()

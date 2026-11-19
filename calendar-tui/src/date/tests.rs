@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDate, Weekday};
+use super::{Date, Weekday};
 
 use super::{WeekStart, days_in_month, today_local};
 
@@ -13,21 +13,21 @@ fn days_in_month_common_cases() {
 #[test]
 fn column_for_monday_week_start() {
     let start = WeekStart::Monday;
-    assert_eq!(start.column_for(Weekday::Mon), 0);
-    assert_eq!(start.column_for(Weekday::Sun), 6);
+    assert_eq!(start.column_for(Weekday::Monday), 0);
+    assert_eq!(start.column_for(Weekday::Sunday), 6);
 }
 
 #[test]
 fn column_for_sunday_week_start() {
     let start = WeekStart::Sunday;
-    assert_eq!(start.column_for(Weekday::Sun), 0);
-    assert_eq!(start.column_for(Weekday::Mon), 1);
-    assert_eq!(start.column_for(Weekday::Sat), 6);
+    assert_eq!(start.column_for(Weekday::Sunday), 0);
+    assert_eq!(start.column_for(Weekday::Monday), 1);
+    assert_eq!(start.column_for(Weekday::Saturday), 6);
 }
 
 #[test]
 fn column_for_each_week_start_on_may_2026_first() {
-    let first = NaiveDate::from_ymd_opt(2026, 5, 1).unwrap();
+    let first = Date::new(2026, 5, 1).unwrap();
     let weekday = first.weekday();
     for start in WeekStart::ALL {
         let col = start.column_for(weekday);
