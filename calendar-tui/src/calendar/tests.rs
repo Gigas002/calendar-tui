@@ -1,7 +1,5 @@
-use chrono::{Datelike, Weekday};
-
 use super::{MAX_WEEK_ROWS, MonthGrid, build_year_grids};
-use crate::date::WeekStart;
+use crate::date::{WeekStart, Weekday};
 
 #[test]
 fn february_2024_has_five_weeks_monday_start() {
@@ -57,13 +55,7 @@ fn grid_cells_are_contiguous_dates() {
     let grid = MonthGrid::build(2026, 5, WeekStart::Monday);
     let flat: Vec<_> = grid.weeks.iter().flat_map(|w| w.iter()).collect();
     for window in flat.windows(2) {
-        assert_eq!(
-            window[1]
-                .date
-                .signed_duration_since(window[0].date)
-                .num_days(),
-            1
-        );
+        assert_eq!(window[0].date.tomorrow().unwrap(), window[1].date);
     }
 }
 
@@ -85,13 +77,13 @@ fn year_grids_never_exceed_max_week_rows() {
 #[test]
 fn monday_start_first_column_is_monday() {
     let grid = MonthGrid::build(2026, 5, WeekStart::Monday);
-    assert_eq!(grid.weeks[0][0].date.weekday(), Weekday::Mon);
+    assert_eq!(grid.weeks[0][0].date.weekday(), Weekday::Monday);
 }
 
 #[test]
 fn sunday_start_first_column_is_sunday() {
     let grid = MonthGrid::build(2026, 5, WeekStart::Sunday);
-    assert_eq!(grid.weeks[0][0].date.weekday(), Weekday::Sun);
+    assert_eq!(grid.weeks[0][0].date.weekday(), Weekday::Sunday);
 }
 
 #[test]
@@ -111,7 +103,7 @@ fn build_year_grids_has_twelve_months() {
     assert_eq!(grids[4].month, 5);
 }
 
-fn column_for_in_month_day(grid: &MonthGrid, day: u32) -> Option<usize> {
+fn column_for_in_month_day(grid: &MonthGrid, day: i8) -> Option<usize> {
     for week in &grid.weeks {
         for (col, cell) in week.iter().enumerate() {
             if cell.in_month && cell.day == day {
@@ -138,8 +130,8 @@ fn iso_week_numbers_match_thursday_in_each_row() {
     for (week, iso_week) in grid.weeks.iter().zip(numbers) {
         let thursday = week
             .iter()
-            .find(|c| c.date.weekday() == Weekday::Thu)
+            .find(|c| c.date.weekday() == Weekday::Thursday)
             .expect("each week row contains a Thursday");
-        assert_eq!(iso_week, thursday.date.iso_week().week());
+        assert_eq!(iso_week, thursday.date.iso_week_date().week());
     }
 }

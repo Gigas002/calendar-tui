@@ -1,14 +1,13 @@
-use chrono::{Datelike, Weekday};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
-mod year;
+pub(crate) mod year;
 
 use crate::calendar::{DayCell, MonthGrid};
-use crate::date::{WeekStart, naive_from_ymd};
+use crate::date::{WeekStart, Weekday, naive_from_ymd};
 use crate::settings::Settings;
 use crate::theme::ThemeColors;
 use crate::view::{ViewMode, ViewState};
@@ -16,7 +15,7 @@ use crate::view::{ViewMode, ViewState};
 const WEEKDAY_LABELS: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const WEEK_NUMBER_HEADER: &str = "Wk";
 const MONTH_WEEK_COL_WIDTH: u16 = 4;
-pub(crate) const MINI_WEEK_COL_WIDTH: u16 = 2;
+pub(crate) const MINI_WEEK_COL_WIDTH: u16 = 3;
 const HELP_MONTH_NAV: &str = "h/l month  j/k year  esc year-view  t today  space select  q quit";
 const HELP_MONTH_SELECT: &str = "h/l day  k/j week  esc year-view  space exit  t today  q quit";
 const HELP_YEAR: &str = "h/l month  j/k year  enter month-view  t today  q quit";
@@ -76,25 +75,36 @@ pub fn weekday_labels(week_start: WeekStart) -> [String; 7] {
     std::array::from_fn(|i| WEEKDAY_LABELS[(i + offset) % 7].to_string())
 }
 
+/// Whether `cell` is the day picked in selection mode.
+fn is_selected(cell: &DayCell, view: &ViewState) -> bool {
+    view.selection_mode && cell.in_month && view.selected_day == Some(cell.day)
+}
+
 pub fn style_for_cell(cell: &DayCell, view: &ViewState, colors: &ThemeColors) -> Style {
     let base = colors.cell_base();
 
     if cell.date == view.today {
-        return colors.today.patch_fg(base).add_modifier(Modifier::BOLD);
+        // Today keeps its color when selected; the reversal still shows the selection.
+        let style = colors.today.patch_fg(base).add_modifier(Modifier::BOLD);
+        return if is_selected(cell, view) {
+            style.add_modifier(Modifier::REVERSED)
+        } else {
+            style
+        };
     }
 
     if !cell.in_month {
         return colors.other_month.patch_fg(base);
     }
 
-    if view.selection_mode && cell.in_month && view.selected_day == Some(cell.day) {
+    if is_selected(cell, view) {
         return colors
             .selected
             .patch_fg(base)
             .add_modifier(Modifier::REVERSED);
     }
 
-    if matches!(cell.date.weekday(), Weekday::Sat | Weekday::Sun) {
+    if matches!(cell.date.weekday(), Weekday::Saturday | Weekday::Sunday) {
         return colors.weekend.patch_fg(base);
     }
 
@@ -141,7 +151,7 @@ fn draw_status(frame: &mut Frame, area: Rect, settings: &Settings) {
     let today_line = settings
         .view
         .today
-        .format(&settings.date_format)
+        .strftime(&settings.date_format)
         .to_string();
     let text = format!("{}    Weeks: {}", today_line, settings.grid.week_count());
 
@@ -164,7 +174,7 @@ fn draw_status(frame: &mut Frame, area: Rect, settings: &Settings) {
 
 fn draw_header(frame: &mut Frame, area: Rect, settings: &Settings) {
     let text = naive_from_ymd(settings.view.view_year, settings.view.view_month, 1)
-        .map(|d| d.format(&settings.month_year_format).to_string())
+        .map(|d| d.strftime(&settings.month_year_format).to_string())
         .unwrap_or_else(|| format!("{} / {}", settings.view.view_month, settings.view.view_year));
 
     let widget = Paragraph::new(text)
@@ -247,7 +257,7 @@ fn week_number_style(colors: &ThemeColors) -> Style {
 }
 
 pub(crate) fn render_week_number(
-    week: u32,
+    week: i8,
     colors: &ThemeColors,
     area: Rect,
     buf: &mut ratatui::buffer::Buffer,
@@ -409,10 +419,13 @@ fn render_day_cell(
 ) {
     let day_str = cell.day.to_string();
     let line = if cell.date == view.today {
-        let day_style = colors
+        let mut day_style = colors
             .today
             .patch_fg(colors.background.patch_bg(Style::default()))
             .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+        if is_selected(cell, view) {
+            day_style = day_style.add_modifier(Modifier::REVERSED);
+        }
         Line::from(Span::styled(day_str, day_style))
     } else {
         Line::from(Span::styled(day_str, style_for_cell(cell, view, colors)))

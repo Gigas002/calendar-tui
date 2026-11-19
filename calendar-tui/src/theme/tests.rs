@@ -170,3 +170,41 @@ fn opaque_color_sets_background() {
 fn parse_color_rejects_bad_length() {
     assert!(parse_color("#fff").is_err());
 }
+
+/// A non-ASCII value of the right byte length put a slice boundary inside a character, which
+/// panicked; a sign was accepted as part of a hex pair.
+#[test]
+fn parse_color_rejects_non_hex_without_panicking() {
+    for bad in [
+        "#aéééb",
+        "#ééé",
+        "#+f+f+f",
+        "#-1-1-1",
+        "#ff00fg",
+        "#ff 0ff",
+        "red",
+    ] {
+        assert!(parse_color(bad).is_err(), "{bad:?} parsed");
+    }
+    assert!(parse_color("  ff00ff ").is_ok());
+}
+
+#[test]
+fn invalid_theme_color_error_names_the_key_and_value() {
+    let theme: Theme = toml::from_str("[calendar]\ntoday = \"#zz0000\"").unwrap();
+    let err = theme.resolve().unwrap_err().to_string();
+    assert!(err.contains("calendar.today"), "{err}");
+    assert!(err.contains("#zz0000"), "{err}");
+}
+
+#[test]
+fn unknown_theme_keys_are_errors_that_name_the_key() {
+    for (toml, key) in [
+        ("[calendar]\nweekends = \"#ff0000\"", "weekends"),
+        ("[base]\nbg_colour = \"#000000\"", "bg_colour"),
+        ("[colours]\ntoday = \"#ff0000\"", "colours"),
+    ] {
+        let err = toml::from_str::<Theme>(toml).unwrap_err().to_string();
+        assert!(err.contains(key), "{key}: {err}");
+    }
+}

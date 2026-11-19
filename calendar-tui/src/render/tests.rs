@@ -1,4 +1,3 @@
-use chrono::NaiveDate;
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::style::Modifier;
@@ -8,12 +7,12 @@ use ratatui::layout::Rect;
 use super::{column_rects, day_line, draw, row_rects, style_for_cell, weekday_labels};
 use crate::calendar::MAX_WEEK_ROWS;
 use crate::calendar::{DayCell, MonthGrid, build_year_grids};
-use crate::date::{WeekStart, naive_from_ymd};
+use crate::date::{Date, WeekStart, naive_from_ymd};
 use crate::settings::Settings;
 use crate::theme::Theme;
 use crate::view::{ViewMode, ViewState};
 
-fn example_settings_for_view(year: i32, month: u32, today: NaiveDate) -> Settings {
+fn example_settings_for_view(year: i16, month: i8, today: Date) -> Settings {
     let config: crate::config::Config = toml::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../examples/config.toml"
@@ -37,10 +36,10 @@ fn example_settings_for_view(year: i32, month: u32, today: NaiveDate) -> Setting
 }
 
 fn view_state(
-    year: i32,
-    month: u32,
-    today: NaiveDate,
-    selected_day: Option<u32>,
+    year: i16,
+    month: i8,
+    today: Date,
+    selected_day: Option<i8>,
     selection_mode: bool,
 ) -> ViewState {
     ViewState {
@@ -281,4 +280,141 @@ fn draw_year_renders_all_month_titles() {
     for name in ["Jan", "Dec"] {
         assert!(content.contains(name), "missing month title {name}");
     }
+}
+
+/// chrono panicked mid-draw on a directive it didn't know ("%Q"); jiff prints the directive
+/// as written, so a typo in the config shows up on screen instead of crashing.
+#[test]
+fn unknown_format_directives_render_as_written() {
+    let today = naive_from_ymd(2026, 5, 18).unwrap();
+    let mut settings = example_settings_for_view(2026, 5, today);
+    settings.date_format = "%Q %d".to_string();
+    settings.month_year_format = "%B %E".to_string();
+    for mode in [ViewMode::Month, ViewMode::Year] {
+        settings.view.mode = mode;
+        let mut terminal = Terminal::new(TestBackend::new(100, 40)).unwrap();
+        terminal.draw(|f| draw(f, &settings)).unwrap();
+        let text: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect();
+        assert!(text.contains("%Q 18"), "{mode:?}: status line missing");
+        if mode == ViewMode::Month {
+            assert!(text.contains("May %E"), "header missing");
+        }
+    }
+}
+
+/// Space selects today by default, but today's style took precedence over the selection, so
+/// nothing looked selected until the selection moved off today.
+#[test]
+fn selected_today_is_drawn_as_selected() {
+    let today = naive_from_ymd(2026, 5, 18).unwrap();
+    let mut settings = example_settings_for_view(2026, 5, today);
+    settings.view.selection_mode = true;
+    settings.view.selected_day = Some(18);
+    let mut terminal = Terminal::new(TestBackend::new(80, 30)).unwrap();
+    terminal.draw(|f| draw(f, &settings)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let selected: String = buffer
+        .content()
+        .iter()
+        .filter(|c| c.modifier.contains(Modifier::REVERSED))
+        .map(|c| c.symbol())
+        .collect();
+    assert_eq!(selected, "18");
+    let cell = buffer
+        .content()
+        .iter()
+        .find(|c| c.modifier.contains(Modifier::REVERSED))
+        .unwrap();
+    assert_eq!(
+        cell.fg,
+        settings.colors.today.to_rgb(),
+        "today keeps its color"
+    );
+}
+
+fn year_screen(width: u16, height: u16) -> String {
+    let today = naive_from_ymd(2026, 5, 18).unwrap();
+    let mut settings = example_settings_for_view(2026, 5, today);
+    settings.view.mode = ViewMode::Year;
+    settings.year_grids = build_year_grids(2026, settings.week_start);
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+    terminal.draw(|f| draw(f, &settings)).unwrap();
+    let buffer = terminal.backend().buffer();
+    (0..height)
+        .map(|y| {
+            (0..width)
+                .map(|x| buffer[(x, y)].symbol())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn year_layout_steps_down_with_the_terminal_size() {
+    use super::year::YearLayout;
+    let layout = |w, h, weeks| {
+        YearLayout::choose(w, h, weeks)
+            .map(|l| (l.per_row, l.full_chrome, l.bordered, l.week_numbers))
+    };
+    // Roomy: four months a row, everything on.
+    assert_eq!(layout(120, 40, true), Some((4, true, true, true)));
+    // Shorter: the status and header shrink, then the borders go.
+    assert_eq!(layout(120, 30, true), Some((4, false, true, true)));
+    assert_eq!(layout(120, 24, true), Some((4, false, false, true)));
+    // Narrower: three months a row (taller) rather than squeezed days.
+    assert_eq!(layout(100, 40, true), Some((3, false, true, true)));
+    assert_eq!(layout(80, 40, true), Some((3, false, true, true)));
+    // Week numbers go only when nothing fits with them.
+    assert_eq!(layout(96, 24, true), Some((4, false, false, false)));
+    assert_eq!(layout(96, 24, false), Some((4, false, false, false)));
+    // Too small for any of it.
+    assert_eq!(layout(80, 24, true), None);
+    assert_eq!(layout(120, 22, false), None);
+}
+
+/// Every day of every month must be drawn, and readable: in the base, mini months below 33
+/// lines were empty boxes, and below ~110 columns days ran together ("28293031") or into the
+/// week number ("526 27").
+#[test]
+fn every_month_shows_readable_days_wherever_the_year_view_fits() {
+    for (width, height) in [
+        (120, 23),
+        (120, 26),
+        (120, 33),
+        (100, 40),
+        (80, 34),
+        (160, 50),
+    ] {
+        let screen = year_screen(width, height);
+        for month in ["Jan", "Jun", "Dec"] {
+            assert!(
+                screen.contains(month),
+                "{width}x{height}: no {month}\n{screen}"
+            );
+        }
+        // The 31st appears in the seven 31-day months of 2026 (and as padding).
+        let thirty_firsts = screen.matches(" 31").count();
+        assert!(
+            thirty_firsts >= 7,
+            "{width}x{height}: days missing\n{screen}"
+        );
+        // No two day numbers (or a week number and a day) touch.
+        for run in ["2829", "2930", "3031", "1011", "1112", "526"] {
+            assert!(!screen.contains(run), "{width}x{height}: {run:?}\n{screen}");
+        }
+    }
+}
+
+#[test]
+fn too_small_for_the_year_view_says_so() {
+    let screen = year_screen(80, 24);
+    assert!(screen.contains("needs at least"), "{screen}");
+    assert!(screen.contains("m: month view"), "{screen}");
 }

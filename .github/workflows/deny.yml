@@ -1,6 +1,12 @@
 name: cargo-deny
 
-on: [push, pull_request]
+# Licenses, advisories, bans and sources on every push; advisories also daily, since new
+# ones are published without any push here.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "23 5 * * *"
 
 permissions:
   contents: read
@@ -14,7 +20,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-deny
-        run: cargo install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
 
       - name: Run cargo deny
-        run: cargo deny check licenses
+        run: cargo deny check

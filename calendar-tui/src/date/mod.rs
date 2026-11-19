@@ -1,4 +1,6 @@
-use chrono::{Datelike, Local, NaiveDate, Weekday};
+use std::time::Duration;
+
+pub use jiff::civil::{Date, Weekday};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -26,48 +28,59 @@ impl WeekStart {
 
     pub fn weekday(self) -> Weekday {
         match self {
-            Self::Monday => Weekday::Mon,
-            Self::Tuesday => Weekday::Tue,
-            Self::Wednesday => Weekday::Wed,
-            Self::Thursday => Weekday::Thu,
-            Self::Friday => Weekday::Fri,
-            Self::Saturday => Weekday::Sat,
-            Self::Sunday => Weekday::Sun,
+            Self::Monday => Weekday::Monday,
+            Self::Tuesday => Weekday::Tuesday,
+            Self::Wednesday => Weekday::Wednesday,
+            Self::Thursday => Weekday::Thursday,
+            Self::Friday => Weekday::Friday,
+            Self::Saturday => Weekday::Saturday,
+            Self::Sunday => Weekday::Sunday,
         }
     }
 
     /// Offset from Monday for column 0 alignment (Monday = 0, Sunday = 6).
     pub fn days_from_monday(self) -> u32 {
-        self.weekday().num_days_from_monday()
+        self.weekday().to_monday_zero_offset() as u32
     }
 
     /// Column index (0–6) for `weekday` when this week start is column 0.
     pub fn column_for(self, weekday: Weekday) -> u32 {
-        let delta = weekday.num_days_from_monday() as i32 - self.days_from_monday() as i32;
+        let delta = weekday.to_monday_zero_offset() as i32 - self.days_from_monday() as i32;
         (((delta % 7) + 7) % 7) as u32
     }
 }
 
-pub fn today_local() -> NaiveDate {
-    Local::now().date_naive()
+/// First and last year the calendar navigates to: one inside jiff's civil date range
+/// (-9999..=9999), so every month grid has the neighbouring days that pad it.
+pub const MIN_YEAR: i16 = -9998;
+pub const MAX_YEAR: i16 = 9998;
+
+pub fn today_local() -> Date {
+    jiff::ZonedDateTime::now().date()
 }
 
-pub fn days_in_month(year: i32, month: u32) -> u32 {
-    let (next_year, next_month) = if month == 12 {
-        (year + 1, 1)
-    } else {
-        (year, month + 1)
-    };
-    let first_of_next =
-        NaiveDate::from_ymd_opt(next_year, next_month, 1).expect("valid year/month for next month");
-    first_of_next
-        .pred_opt()
-        .expect("day before month end")
-        .day()
+/// Longest wait between checks of the date: the next midnight is computed from the clock as it
+/// is now, and a suspend or a clock change can move midnight closer without waking us.
+pub const MAX_DATE_CHECK_INTERVAL: Duration = Duration::from_secs(60);
+
+/// How long to wait from `now` before the date can have changed: until the next local
+/// midnight, at most [`MAX_DATE_CHECK_INTERVAL`].
+pub fn until_date_check(now: &jiff::ZonedDateTime) -> Duration {
+    now.tomorrow()
+        .and_then(|next| next.start_of_day())
+        .ok()
+        .and_then(|midnight| Duration::try_from(now.duration_until(&midnight)).ok())
+        .map_or(MAX_DATE_CHECK_INTERVAL, |d| d.min(MAX_DATE_CHECK_INTERVAL))
 }
 
-pub fn naive_from_ymd(year: i32, month: u32, day: u32) -> Option<NaiveDate> {
-    NaiveDate::from_ymd_opt(year, month, day)
+pub fn days_in_month(year: i16, month: i8) -> i8 {
+    Date::new(year, month, 1)
+        .expect("valid year/month")
+        .days_in_month()
+}
+
+pub fn naive_from_ymd(year: i16, month: i8, day: i8) -> Option<Date> {
+    Date::new(year, month, day).ok()
 }
 
 #[cfg(test)]

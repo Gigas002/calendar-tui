@@ -6,13 +6,17 @@ use crate::date::WeekStart;
 use crate::error::Error;
 use crate::view::ViewMode;
 
-#[derive(Debug, Clone, Deserialize)]
+/// The config file as written: every key optional. The getters below supply the defaults, so
+/// `Config::default()` (no file) and an empty file behave the same.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub calendar: Option<Calendar>,
     pub display: Option<Display>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Calendar {
     pub week_start: Option<WeekStart>,
     pub show_week_numbers: Option<bool>,
@@ -20,40 +24,12 @@ pub struct Calendar {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Display {
     pub date_format: Option<String>,
     pub month_year_format: Option<String>,
     /// Starting view: `month` or `year` (also toggled with `m` / `y` at runtime).
     pub default_mode: Option<ViewMode>,
-}
-
-impl Default for Calendar {
-    fn default() -> Self {
-        Self {
-            week_start: Some(WeekStart::Monday),
-            show_week_numbers: Some(false),
-            theme: Some("theme.toml".to_string()),
-        }
-    }
-}
-
-impl Default for Display {
-    fn default() -> Self {
-        Self {
-            date_format: Some("%a, %d %b %Y".to_string()),
-            month_year_format: Some("%B %Y".to_string()),
-            default_mode: Some(ViewMode::Year),
-        }
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            calendar: Some(Calendar::default()),
-            display: Some(Display::default()),
-        }
-    }
 }
 
 impl Config {
@@ -68,14 +44,14 @@ impl Config {
         })
     }
 
-    pub fn load_or_default(path: &Path) -> Self {
-        match Self::load(path) {
-            Ok(config) => config,
-            Err(err) => {
-                tracing::warn!(%err, path = %path.display(), "config unavailable, using defaults");
-                Self::default()
-            }
+    /// Loads `path` if it's there. A file the user named (`required`) must exist; the default
+    /// location may be missing, which means the defaults.
+    pub fn load_from(path: &Path, required: bool) -> Result<Self, Error> {
+        if !required && !path.exists() {
+            tracing::debug!(path = %path.display(), "no config file, using defaults");
+            return Ok(Self::default());
         }
+        Self::load(path)
     }
 
     pub fn week_start(&self) -> WeekStart {
@@ -90,6 +66,11 @@ impl Config {
             .as_ref()
             .and_then(|c| c.show_week_numbers)
             .unwrap_or(false)
+    }
+
+    /// Whether the config names a theme (rather than falling back to `theme.toml`).
+    pub fn theme_is_set(&self) -> bool {
+        self.calendar.as_ref().is_some_and(|c| c.theme.is_some())
     }
 
     pub fn theme_name(&self) -> &str {

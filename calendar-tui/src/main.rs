@@ -25,24 +25,36 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
 
     let config_path = cli.config.clone().unwrap_or_else(default_config_path);
-    let config = load_config(&config_path);
-
-    let theme_name = config.theme_name();
-    let theme_path = cli
-        .theme
-        .clone()
-        .unwrap_or_else(|| theme::resolve_path(&config_path, theme_name));
-    let theme = load_theme(&theme_path);
-
-    let settings = match Settings::from_cli(&cli, config, theme) {
-        Ok(s) => s,
+    let config = match Config::load_from(&config_path, cli.config.is_some()) {
+        Ok(config) => config,
         Err(err) => {
-            tracing::error!(%err, "failed to resolve settings");
+            tracing::error!("{err}");
             return ExitCode::from(1);
         }
     };
 
-    tracing::info!(
+    let theme_path = cli
+        .theme
+        .clone()
+        .unwrap_or_else(|| theme::resolve_path(&config_path, config.theme_name()));
+    let theme_named = cli.theme.is_some() || config.theme_is_set();
+    let theme = match Theme::load_from(&theme_path, theme_named) {
+        Ok(theme) => theme,
+        Err(err) => {
+            tracing::error!("{err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let settings = match Settings::from_cli(&cli, config, theme) {
+        Ok(s) => s,
+        Err(err) => {
+            tracing::error!(%err, path = %theme_path.display(), "invalid theme");
+            return ExitCode::from(1);
+        }
+    };
+
+    tracing::debug!(
         week_start = ?settings.week_start,
         view_mode = ?settings.view.mode,
         weeks = settings.grid.week_count(),
@@ -61,33 +73,5 @@ fn main() -> ExitCode {
             tracing::error!(%err, "application error");
             ExitCode::from(1)
         }
-    }
-}
-
-fn load_config(path: &std::path::Path) -> Config {
-    if path.is_file() {
-        match Config::load(path) {
-            Ok(config) => config,
-            Err(err) => {
-                tracing::error!(%err, path = %path.display(), "invalid config");
-                std::process::exit(1);
-            }
-        }
-    } else {
-        Config::load_or_default(path)
-    }
-}
-
-fn load_theme(path: &std::path::Path) -> Theme {
-    if path.is_file() {
-        match Theme::load(path) {
-            Ok(theme) => theme,
-            Err(err) => {
-                tracing::error!(%err, path = %path.display(), "invalid theme");
-                std::process::exit(1);
-            }
-        }
-    } else {
-        Theme::load_or_default(path)
     }
 }
