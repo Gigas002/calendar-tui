@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A theme color with a non-ASCII character (`"#aéééb"`) crashed `calendar-tui`, and one with a
+  sign (`"#+f+f+f"`) was accepted. Both are now errors, and color errors name the key, the value
+  and the theme file.
 - An unknown directive in `date_format` or `month_year_format` (a typo like `%Q`) crashed
   `calendar-tui` on its first draw. It's now shown as written.
 - A crash while the calendar was on screen printed its message to the alternate screen, which

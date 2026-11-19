@@ -24,6 +24,10 @@ pub enum Error {
         source: toml::de::Error,
     },
 
-    #[error("invalid color {value}: {reason}")]
-    InvalidColor { value: String, reason: String },
+    #[error("invalid color for {key}: {value:?} ({reason})")]
+    InvalidColor {
+        key: String,
+        value: String,
+        reason: &'static str,
+    },
 }

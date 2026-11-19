@@ -37,7 +37,7 @@ fn main() -> ExitCode {
     let settings = match Settings::from_cli(&cli, config, theme) {
         Ok(s) => s,
         Err(err) => {
-            tracing::error!(%err, "failed to resolve settings");
+            tracing::error!(%err, path = %theme_path.display(), "invalid theme");
             return ExitCode::from(1);
         }
     };

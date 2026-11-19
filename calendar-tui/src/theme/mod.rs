@@ -149,16 +149,33 @@ impl Theme {
         let base = self.base.clone().unwrap_or_default();
         let calendar = self.calendar.clone().unwrap_or_default();
 
+        let color = |key: &str, value: Option<&str>, default: &str| {
+            let value = value.unwrap_or(default);
+            parse_color(value).map_err(|reason| Error::InvalidColor {
+                key: key.to_string(),
+                value: value.to_string(),
+                reason,
+            })
+        };
+
         Ok(ThemeColors {
-            background: parse_color(base.background.as_deref().unwrap_or("#1e1e2eFF"))?,
-            foreground: parse_color(base.foreground.as_deref().unwrap_or("#cdd6f4FF"))?,
-            border: parse_color(base.border.as_deref().unwrap_or("#45475aFF"))?,
-            header: parse_color(calendar.header.as_deref().unwrap_or("#cba6f7FF"))?,
-            status: parse_color(calendar.status.as_deref().unwrap_or("#a6e3a1FF"))?,
-            today: parse_color(calendar.today.as_deref().unwrap_or("#f9e2afFF"))?,
-            selected: parse_color(calendar.selected.as_deref().unwrap_or("#89b4faFF"))?,
-            weekend: parse_color(calendar.weekend.as_deref().unwrap_or("#f38ba8FF"))?,
-            other_month: parse_color(calendar.other_month.as_deref().unwrap_or("#6c7086FF"))?,
+            background: color("base.background", base.background.as_deref(), "#1e1e2eFF")?,
+            foreground: color("base.foreground", base.foreground.as_deref(), "#cdd6f4FF")?,
+            border: color("base.border", base.border.as_deref(), "#45475aFF")?,
+            header: color("calendar.header", calendar.header.as_deref(), "#cba6f7FF")?,
+            status: color("calendar.status", calendar.status.as_deref(), "#a6e3a1FF")?,
+            today: color("calendar.today", calendar.today.as_deref(), "#f9e2afFF")?,
+            selected: color(
+                "calendar.selected",
+                calendar.selected.as_deref(),
+                "#89b4faFF",
+            )?,
+            weekend: color("calendar.weekend", calendar.weekend.as_deref(), "#f38ba8FF")?,
+            other_month: color(
+                "calendar.other_month",
+                calendar.other_month.as_deref(),
+                "#6c7086FF",
+            )?,
         })
     }
 }
@@ -192,39 +209,31 @@ pub fn resolve_path(config_path: &Path, theme: &str) -> PathBuf {
     themes_dir().join(theme)
 }
 
-pub fn parse_color(value: &str) -> Result<ThemeColor, Error> {
-    let hex = value.trim().trim_start_matches('#');
-    match hex.len() {
-        6 => {
-            let r = parse_hex_byte(&hex[0..2])?;
-            let g = parse_hex_byte(&hex[2..4])?;
-            let b = parse_hex_byte(&hex[4..6])?;
-            Ok(ThemeColor {
-                r,
-                g,
-                b,
-                a: ThemeColor::OPAQUE,
-            })
-        }
-        8 => {
-            let r = parse_hex_byte(&hex[0..2])?;
-            let g = parse_hex_byte(&hex[2..4])?;
-            let b = parse_hex_byte(&hex[4..6])?;
-            let a = parse_hex_byte(&hex[6..8])?;
-            Ok(ThemeColor { r, g, b, a })
-        }
-        _ => Err(Error::InvalidColor {
-            value: value.to_string(),
-            reason: "expected #RRGGBB or #RRGGBBAA".to_string(),
-        }),
+/// Parses `#RRGGBB` or `#RRGGBBAA` (the `#` is optional); the error says what's wrong.
+pub fn parse_color(value: &str) -> Result<ThemeColor, &'static str> {
+    let hex = value.trim();
+    let hex = hex.strip_prefix('#').unwrap_or(hex);
+    // Checked before slicing: a multi-byte character would put a slice boundary inside it,
+    // and `from_str_radix` alone would accept a sign ("+f").
+    if !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err("expected hex digits: #RRGGBB or #RRGGBBAA");
     }
-}
-
-fn parse_hex_byte(pair: &str) -> Result<u8, Error> {
-    u8::from_str_radix(pair, 16).map_err(|_| Error::InvalidColor {
-        value: pair.to_string(),
-        reason: "invalid hex digit".to_string(),
-    })
+    let byte = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).expect("two hex digits");
+    match hex.len() {
+        6 => Ok(ThemeColor {
+            r: byte(0),
+            g: byte(2),
+            b: byte(4),
+            a: ThemeColor::OPAQUE,
+        }),
+        8 => Ok(ThemeColor {
+            r: byte(0),
+            g: byte(2),
+            b: byte(4),
+            a: byte(6),
+        }),
+        _ => Err("expected #RRGGBB or #RRGGBBAA"),
+    }
 }
 
 #[cfg(test)]
