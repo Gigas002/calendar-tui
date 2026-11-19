@@ -13,8 +13,13 @@ fn month_view(
         focused_month: view_month,
         selected_day,
         selection_mode,
-        today: ViewState::new_at_today(ViewMode::Year).today,
+        today: today(),
     }
+}
+
+/// A fixed "today": tests don't read the clock, so they can't straddle midnight.
+fn today() -> crate::date::Date {
+    crate::date::naive_from_ymd(2026, 5, 18).unwrap()
 }
 
 #[test]
@@ -72,7 +77,7 @@ fn jump_to_today_resets_view() {
 
 #[test]
 fn toggle_selection_mode_on_and_off() {
-    let today = ViewState::new_at_today(ViewMode::Year).today;
+    let today = today();
     let mut view = month_view(today.year(), today.month(), None, false);
     view.toggle_selection_mode();
     assert!(view.selection_mode);
