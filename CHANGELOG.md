@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the shell), without timestamps, and without color codes when stderr isn't a terminal.
   `RUST_LOG` takes a level (`RUST_LOG=debug`); per-module filters are gone.
 
+### Documentation
+
+- The README's configuration section ended mid-way ("see below"). It now lists every config
+  and theme key, how theme files are found, the command line, exit codes and logging.
+
 ### Fixed
 
 - The year view needed 33 lines: on a 24-line terminal every month was an empty box, and up to
