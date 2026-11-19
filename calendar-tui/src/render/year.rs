@@ -12,6 +12,41 @@ use crate::settings::Settings;
 use crate::theme::ThemeColors;
 use crate::view::{ViewMode, ViewState};
 
+/// Rows one mini month takes with its border: a line above and below its six weeks.
+const MINI_ROWS_BORDERED: u16 = MAX_WEEK_ROWS as u16 + 2;
+/// Rows one mini month takes without a border: a title line and its six weeks.
+const MINI_ROWS_BARE: u16 = MAX_WEEK_ROWS as u16 + 1;
+
+/// How the year view fits the terminal's height. The full layout needs 33 lines; below that,
+/// first the boxed status and header shrink to one line, then the months lose their borders,
+/// so a standard 24-line terminal still shows every day.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum YearLayout {
+    /// Margin, boxed status and header, bordered months, help line.
+    Full,
+    /// One status line, bordered months, help line.
+    Compact,
+    /// One status line, borderless months, help line.
+    Bare,
+    /// Not even that fits: a message instead.
+    TooSmall,
+}
+
+impl YearLayout {
+    pub(crate) fn for_height(height: u16) -> Self {
+        // margin + status box + header box + help line + margin
+        if height >= 1 + 3 + 3 + 1 + 1 + 3 * MINI_ROWS_BORDERED {
+            Self::Full
+        } else if height >= 1 + 1 + 3 * MINI_ROWS_BORDERED {
+            Self::Compact
+        } else if height >= 1 + 1 + 3 * MINI_ROWS_BARE {
+            Self::Bare
+        } else {
+            Self::TooSmall
+        }
+    }
+}
+
 const MONTH_NAMES: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
@@ -26,37 +61,92 @@ pub fn draw_year(frame: &mut ratatui::Frame, settings: &Settings) {
         );
     }
 
-    let vertical = Layout::vertical([
-        Constraint::Length(3),
-        Constraint::Length(3),
-        Constraint::Fill(1),
-        Constraint::Length(1),
-    ])
-    .margin(1);
+    let layout = YearLayout::for_height(area.height);
+    let grid_area = match layout {
+        YearLayout::Full => {
+            let vertical = Layout::vertical([
+                Constraint::Length(3),
+                Constraint::Length(3),
+                Constraint::Fill(1),
+                Constraint::Length(1),
+            ])
+            .margin(1);
+            let [status_area, header_area, grid_area, help_area] = vertical.areas(area);
+            draw_year_status(frame, status_area, settings);
+            draw_year_header(frame, header_area, settings);
+            super::draw_help(frame, help_area, settings);
+            grid_area
+        }
+        YearLayout::Compact | YearLayout::Bare => {
+            let vertical = Layout::vertical([
+                Constraint::Length(1),
+                Constraint::Fill(1),
+                Constraint::Length(1),
+            ]);
+            let [status_area, grid_area, help_area] = vertical.areas(area);
+            draw_year_status_line(frame, status_area, settings);
+            super::draw_help(frame, help_area, settings);
+            grid_area
+        }
+        YearLayout::TooSmall => {
+            draw_too_small(frame, area, settings);
+            return;
+        }
+    };
 
-    let [status_area, header_area, grid_area, help_area] = vertical.areas(area);
-
-    draw_year_status(frame, status_area, settings);
-    draw_year_header(frame, header_area, settings);
     frame.render_widget(
         YearOverview {
             grids: &settings.year_grids,
             view: &settings.view,
             colors: &settings.colors,
             show_week_numbers: settings.show_week_numbers,
+            bordered: layout != YearLayout::Bare,
         },
         grid_area,
     );
-    super::draw_help(frame, help_area, settings);
 }
 
-fn draw_year_status(frame: &mut ratatui::Frame, area: Rect, settings: &Settings) {
+fn status_text(settings: &Settings) -> String {
     let today_line = settings
         .view
         .today
         .strftime(&settings.date_format)
         .to_string();
-    let text = format!("{}    Year: {}", today_line, settings.view.view_year);
+    format!("{}    Year: {}", today_line, settings.view.view_year)
+}
+
+/// The status and the header on one unboxed line, for short terminals.
+fn draw_year_status_line(frame: &mut ratatui::Frame, area: Rect, settings: &Settings) {
+    let focused = MONTH_NAMES[(settings.view.focused_month - 1) as usize];
+    let widget = Paragraph::new(format!(" {} — {}", status_text(settings), focused))
+        .style(
+            settings
+                .colors
+                .status
+                .patch_fg(settings.colors.background.patch_bg(Style::default())),
+        )
+        .alignment(Alignment::Center);
+    frame.render_widget(widget, area);
+}
+
+fn draw_too_small(frame: &mut ratatui::Frame, area: Rect, settings: &Settings) {
+    let needed = 1 + 1 + 3 * MINI_ROWS_BARE;
+    let text = format!(
+        "The year view needs {needed} lines (this terminal has {}). m: month view, q: quit",
+        area.height
+    );
+    let widget = Paragraph::new(text)
+        .style(settings.colors.cell_base())
+        .alignment(Alignment::Center)
+        .wrap(ratatui::widgets::Wrap { trim: true });
+    let [middle] = Layout::vertical([Constraint::Length(3)])
+        .flex(ratatui::layout::Flex::Center)
+        .areas(area);
+    frame.render_widget(widget, middle);
+}
+
+fn draw_year_status(frame: &mut ratatui::Frame, area: Rect, settings: &Settings) {
+    let text = status_text(settings);
 
     let widget = Paragraph::new(text)
         .style(
@@ -101,6 +191,7 @@ struct YearOverview<'a> {
     view: &'a ViewState,
     colors: &'a ThemeColors,
     show_week_numbers: bool,
+    bordered: bool,
 }
 
 impl Widget for YearOverview<'_> {
@@ -123,6 +214,7 @@ impl Widget for YearOverview<'_> {
                     colors: self.colors,
                     focused,
                     show_week_numbers: self.show_week_numbers,
+                    bordered: self.bordered,
                 }
                 .render(*month_area, buf);
             }
@@ -137,6 +229,7 @@ struct MiniMonth<'a> {
     colors: &'a ThemeColors,
     focused: bool,
     show_week_numbers: bool,
+    bordered: bool,
 }
 
 impl Widget for MiniMonth<'_> {
@@ -155,13 +248,34 @@ impl Widget for MiniMonth<'_> {
             self.colors.border.patch_fg(Style::default())
         };
 
-        let block = Block::default()
-            .title(format!(" {title} "))
-            .borders(Borders::ALL)
-            .border_style(border_style)
-            .style(block_style(self.colors));
-        let inner = block.inner(area);
-        block.render(area, buf);
+        let inner = if self.bordered {
+            let block = Block::default()
+                .title(format!(" {title} "))
+                .borders(Borders::ALL)
+                .border_style(border_style)
+                .style(block_style(self.colors));
+            let inner = block.inner(area);
+            block.render(area, buf);
+            inner
+        } else {
+            // No border to color: the focused month's title is reversed instead. A column
+            // on each side keeps neighbouring months' days apart.
+            let title_style = if self.focused {
+                border_style.add_modifier(Modifier::REVERSED)
+            } else {
+                border_style
+            };
+            Paragraph::new(format!(" {title} "))
+                .style(title_style)
+                .alignment(Alignment::Center)
+                .render(Rect { height: 1, ..area }, buf);
+            Rect {
+                x: area.x + 1,
+                y: area.y + 1,
+                width: area.width.saturating_sub(2),
+                height: area.height - 1,
+            }
+        };
 
         let min_day_width = if self.show_week_numbers {
             7 + MINI_WEEK_COL_WIDTH

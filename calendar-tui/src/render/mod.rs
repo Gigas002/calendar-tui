@@ -4,7 +4,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
-mod year;
+pub(crate) mod year;
 
 use crate::calendar::{DayCell, MonthGrid};
 use crate::date::{WeekStart, Weekday, naive_from_ymd};

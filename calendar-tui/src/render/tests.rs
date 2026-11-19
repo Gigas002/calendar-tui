@@ -337,3 +337,55 @@ fn selected_today_is_drawn_as_selected() {
         "today keeps its color"
     );
 }
+
+fn year_screen(width: u16, height: u16) -> String {
+    let today = naive_from_ymd(2026, 5, 18).unwrap();
+    let mut settings = example_settings_for_view(2026, 5, today);
+    settings.view.mode = ViewMode::Year;
+    settings.year_grids = build_year_grids(2026, settings.week_start);
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+    terminal.draw(|f| draw(f, &settings)).unwrap();
+    let buffer = terminal.backend().buffer();
+    (0..height)
+        .map(|y| {
+            (0..width)
+                .map(|x| buffer[(x, y)].symbol())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn year_layout_steps_down_with_the_height() {
+    use super::year::YearLayout;
+    assert_eq!(YearLayout::for_height(40), YearLayout::Full);
+    assert_eq!(YearLayout::for_height(33), YearLayout::Full);
+    assert_eq!(YearLayout::for_height(32), YearLayout::Compact);
+    assert_eq!(YearLayout::for_height(26), YearLayout::Compact);
+    assert_eq!(YearLayout::for_height(25), YearLayout::Bare);
+    assert_eq!(YearLayout::for_height(23), YearLayout::Bare);
+    assert_eq!(YearLayout::for_height(22), YearLayout::TooSmall);
+}
+
+/// Each mini month needs six week rows; below 33 lines the base drew the boxes empty (all of
+/// them on a 24-line terminal, the last row of months at 32 lines).
+#[test]
+fn every_month_shows_its_days_down_to_23_lines() {
+    for height in [23, 24, 26, 30, 32, 33, 40] {
+        let screen = year_screen(120, height);
+        for month in ["Jan", "Jun", "Dec"] {
+            assert!(screen.contains(month), "{height} lines: no {month}");
+        }
+        // The 31st appears in the seven 31-day months of 2026 (and as padding).
+        let thirty_firsts = screen.matches("31").count();
+        assert!(thirty_firsts >= 7, "{height} lines: days missing\n{screen}");
+    }
+}
+
+#[test]
+fn too_short_for_the_year_view_says_so() {
+    let screen = year_screen(120, 20);
+    assert!(screen.contains("needs 23 lines"), "{screen}");
+    assert!(screen.contains("m: month view"), "{screen}");
+}

@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The year view needed 33 lines: on a 24-line terminal every month was an empty box, and up to
+  32 lines the last row was. Below 33 lines the status and header now share one line, below
+  26 the months lose their borders, and below 23 a message points to the month view.
 - Left open past midnight, the calendar kept showing yesterday as today. It now moves to the
   new day at midnight.
 - The calendar redrew itself ten times a second while idle. It now redraws only on a key, a
