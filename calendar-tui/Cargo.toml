@@ -13,17 +13,27 @@ path = "src/main.rs"
 
 [features]
 default = []
-provider = []
 
 [dependencies]
-jiff = { version = "1.0.1", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
+jiff = { version = "1", default-features = false, features = [
+    "std",
+    "tz-system",
+    "tzdb-zoneinfo",
+] }
 clap = { version = "4", features = ["derive"] }
-ratatui = { version = "0.30", default-features = false, features = ["crossterm", "std"] }
+ratatui = { version = "0.30", default-features = false, features = [
+    "crossterm",
+    "std",
+] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 toml = "1"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "ansi"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "fmt",
+    "std",
+    "ansi",
+] }
 
 [dev-dependencies]
 tempfile = "3"
